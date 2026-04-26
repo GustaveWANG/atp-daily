@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import Anthropic from "@anthropic-ai/sdk";
 import type { Match } from "@/lib/mockData";
+import { supabaseAdmin } from "@/lib/supabase-server";
 
 // Prompt système stable — le cache_control active le prompt caching côté API.
 // Le cache se déclenche à partir de 2048 tokens sur Sonnet 4.6 ; ce prompt
@@ -83,6 +84,38 @@ export default async function handler(
 
   const textBlock = response.content.find((b) => b.type === "text");
   const recap = textBlock && textBlock.type === "text" ? textBlock.text : "";
+
+  // Persistance dans Supabase — best-effort (n'échoue pas la requête si le DB plante)
+  const { error: dbError } = await supabaseAdmin.from("matches").upsert({
+    id: match.id,
+    tournament: match.tournament,
+    round: match.round,
+    surface: match.surface,
+    date: match.date,
+    winner_name: match.winner.name,
+    winner_country: match.winner.country,
+    winner_seed: match.winner.seed ?? null,
+    loser_name: match.loser.name,
+    loser_country: match.loser.country,
+    loser_seed: match.loser.seed ?? null,
+    score: match.score,
+    winner_stats: {
+      aces: match.winnerStats.aces,
+      double_faults: match.winnerStats.doubleFaults,
+      first_serve_pct: match.winnerStats.firstServePercentage,
+      bp_converted: match.winnerStats.breakPointsConverted,
+      bp_total: match.winnerStats.breakPointsTotal,
+    },
+    loser_stats: {
+      aces: match.loserStats.aces,
+      double_faults: match.loserStats.doubleFaults,
+      first_serve_pct: match.loserStats.firstServePercentage,
+      bp_converted: match.loserStats.breakPointsConverted,
+      bp_total: match.loserStats.breakPointsTotal,
+    },
+    recap,
+  });
+  if (dbError) console.error("Supabase upsert error:", dbError.message);
 
   return res.status(200).json({ recap });
 }

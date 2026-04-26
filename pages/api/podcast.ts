@@ -1,6 +1,9 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import Anthropic from "@anthropic-ai/sdk";
 import { matches } from "@/lib/mockData";
+import { supabaseAdmin } from "@/lib/supabase-server";
+
+const EPISODE_DATE = "2026-04-25";
 
 // Prompt système stable — mis en cache côté API Anthropic
 const SYSTEM_PROMPT = `You are the scriptwriter for "ATP Daily", a daily tennis podcast hosted by two contrasting personalities.
@@ -79,6 +82,12 @@ export default async function handler(
 
   const textBlock = response.content.find((b) => b.type === "text");
   const script = textBlock && textBlock.type === "text" ? textBlock.text : "";
+
+  // Persistance de l'épisode — upsert sur la date pour que regénérer écrase l'ancien
+  const { error: dbError } = await supabaseAdmin
+    .from("episodes")
+    .upsert({ date: EPISODE_DATE, script }, { onConflict: "date" });
+  if (dbError) console.error("Supabase upsert error:", dbError.message);
 
   return res.status(200).json({ script });
 }

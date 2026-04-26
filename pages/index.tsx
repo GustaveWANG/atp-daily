@@ -1,13 +1,15 @@
 import Head from "next/head";
 import Link from "next/link";
 import { useState, useRef, useEffect } from "react";
-import { matches, type Match } from "@/lib/mockData";
+import type { GetServerSideProps } from "next";
+import { matches as mockMatches, type Match, type Surface } from "@/lib/mockData";
 import styles from "@/styles/Home.module.css";
 import PodcastPlayer, {
   type PlayerHandle,
   type PlayerState,
 } from "@/components/PodcastPlayer";
 import MiniPlayer from "@/components/MiniPlayer";
+import type { DbMatch } from "@/lib/supabase";
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -71,24 +73,20 @@ const WAVE_HEIGHTS = Array.from({ length: 48 }, (_, i) =>
   Math.max(4, 6 + Math.abs(Math.sin(i * 0.5)) * 28)
 );
 
-// Titres des chapitres dérivés des matchs du jour + intro/outro
-const CHAPTER_TITLES = [
-  "Cold open",
-  ...matches.map(
-    (m) =>
-      `${m.winner.name.split(" ").pop() ?? ""} v ${m.loser.name.split(" ").pop() ?? ""}`
-  ),
-  "Order of play",
-];
-
 // ── composant principal ───────────────────────────────────────────────────────
-export default function Home() {
-  const [recaps, setRecaps] = useState<Record<string, string>>({});
+interface HomeProps {
+  matches: Match[];
+  initialRecaps: Record<string, string>;
+  todayScript: string | null;
+}
+
+export default function Home({ matches, initialRecaps, todayScript }: HomeProps) {
+  const [recaps, setRecaps] = useState<Record<string, string>>(initialRecaps);
   const [loading, setLoading] = useState<Record<string, boolean>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
-  const [podcastScript, setPodcastScript] = useState("");
+  const [podcastScript, setPodcastScript] = useState(todayScript ?? "");
   const [podcastLoading, setPodcastLoading] = useState(false);
   const [podcastError, setPodcastError] = useState("");
 
@@ -210,6 +208,16 @@ export default function Home() {
       generateAudio();
     }
   }
+
+  // Titres des chapitres calculés depuis les matchs chargés
+  const CHAPTER_TITLES = [
+    "Cold open",
+    ...matches.map(
+      (m) =>
+        `${m.winner.name.split(" ").pop() ?? ""} v ${m.loser.name.split(" ").pop() ?? ""}`
+    ),
+    "Order of play",
+  ];
 
   // joueur avec le plus d'aces = Player of the Day
   const potd = matches.reduce((best, m) =>
@@ -597,3 +605,88 @@ export default function Home() {
     </>
   );
 }
+
+// ── conversion DB → format app ────────────────────────────────────────────────
+function dbMatchToMatch(m: DbMatch): Match {
+  return {
+    id: m.id,
+    tournament: m.tournament,
+    round: m.round,
+    surface: m.surface as Surface,
+    date: m.date,
+    winner: {
+      name: m.winner_name,
+      country: m.winner_country,
+      ...(m.winner_seed !== null ? { seed: m.winner_seed } : {}),
+    },
+    loser: {
+      name: m.loser_name,
+      country: m.loser_country,
+      ...(m.loser_seed !== null ? { seed: m.loser_seed } : {}),
+    },
+    score: m.score,
+    winnerStats: {
+      aces: m.winner_stats.aces,
+      doubleFaults: m.winner_stats.double_faults,
+      firstServePercentage: m.winner_stats.first_serve_pct,
+      breakPointsConverted: m.winner_stats.bp_converted,
+      breakPointsTotal: m.winner_stats.bp_total,
+    },
+    loserStats: {
+      aces: m.loser_stats.aces,
+      doubleFaults: m.loser_stats.double_faults,
+      firstServePercentage: m.loser_stats.first_serve_pct,
+      breakPointsConverted: m.loser_stats.bp_converted,
+      breakPointsTotal: m.loser_stats.bp_total,
+    },
+  };
+}
+
+// ── chargement serveur : matchs + épisode du jour ────────────────────────────
+export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
+  const today = "2026-04-25";
+  try {
+    // Import dynamique à l'intérieur du try — toute erreur (module, réseau) → fallback mockData
+    const { supabaseAdmin } = await import("@/lib/supabase-server");
+    const [{ data: rawMatches }, { data: rawEpisode }] = await Promise.all([
+      supabaseAdmin
+        .from("matches")
+        .select("*")
+        .eq("date", today)
+        .order("created_at", { ascending: true }),
+      supabaseAdmin
+        .from("episodes")
+        .select("script")
+        .eq("date", today)
+        .maybeSingle(),
+    ]);
+
+    const dbMatches = rawMatches as DbMatch[] | null;
+    const dbEpisode = rawEpisode as { script: string } | null;
+
+    const loadedMatches =
+      dbMatches && dbMatches.length > 0
+        ? dbMatches.map(dbMatchToMatch)
+        : mockMatches;
+
+    const initialRecaps: Record<string, string> = {};
+    if (dbMatches) {
+      for (const m of dbMatches) {
+        if (m.recap) initialRecaps[m.id] = m.recap;
+      }
+    }
+
+    return {
+      props: {
+        matches: loadedMatches,
+        initialRecaps,
+        todayScript: dbEpisode?.script ?? null,
+      },
+    };
+  } catch {
+    // Fallback sur les données mock si Supabase est inaccessible
+    return {
+      props: { matches: mockMatches, initialRecaps: {}, todayScript: null },
+    };
+  }
+};

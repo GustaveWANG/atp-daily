@@ -28,19 +28,16 @@ export interface DbMatch {
   created_at: string;
 }
 
-export type Database = {
-  public: {
-    Tables: {
-      matches: {
-        Row: DbMatch;
-        Insert: Omit<DbMatch, "created_at">;
-        Update: Partial<Omit<DbMatch, "id" | "created_at">>;
-      };
-    };
-  };
-};
+export interface DbEpisode {
+  id: string;
+  date: string;
+  script: string;
+  created_at: string;
+}
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey);
+// Client sans générique Database — les types manuels ci-dessus (DbMatch, DbEpisode)
+// sont utilisés pour caster les résultats de requête côté application
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);

@@ -36,3 +36,14 @@ CREATE INDEX IF NOT EXISTS matches_date_idx ON matches (date DESC);
 
 -- Index pour accélérer les requêtes par tournoi
 CREATE INDEX IF NOT EXISTS matches_tournament_idx ON matches (tournament);
+
+-- Table des épisodes podcast quotidiens
+-- Un seul épisode par date (contrainte UNIQUE sur date)
+CREATE TABLE IF NOT EXISTS episodes (
+  id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  date        DATE        NOT NULL UNIQUE,
+  script      TEXT        NOT NULL,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS episodes_date_idx ON episodes (date DESC);
