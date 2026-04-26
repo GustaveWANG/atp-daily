@@ -1,0 +1,17 @@
+{
+  "functions": {
+    "pages/api/recap.ts": { "maxDuration": 30 },
+    "pages/api/podcast.ts": { "maxDuration": 60 },
+    "pages/api/tts.ts": { "maxDuration": 60 }
+  },
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "X-Frame-Options", "value": "DENY" },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" }
+      ]
+    }
+  ]
+}

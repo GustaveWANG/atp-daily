@@ -1,0 +1,538 @@
+/* ── Page shell ─────────────────────────────────────────────────────────────── */
+.page {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 24px 36px 72px;
+  background: var(--paper);
+  min-height: 100vh;
+}
+
+/* ── Nav ─────────────────────────────────────────────────────────────────────── */
+.nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 0 16px;
+  border-bottom: 1.5px solid var(--line);
+  margin-bottom: 36px;
+}
+
+.logo {
+  font-family: 'Caveat', cursive;
+  font-weight: 700;
+  font-size: 26px;
+  letter-spacing: -0.01em;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  text-decoration: none;
+  color: var(--ink);
+}
+
+.logo svg {
+  width: 20px;
+  height: 20px;
+}
+
+.backBtn {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--ink-2);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.backBtn:hover {
+  color: var(--ink);
+}
+
+/* ── En-tête match ───────────────────────────────────────────────────────────── */
+.header {
+  text-align: center;
+  margin-bottom: 28px;
+}
+
+.headerMeta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  margin-bottom: 6px;
+}
+
+.tournament {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.dot {
+  color: var(--line-soft);
+}
+
+.surface {
+  color: var(--clay);
+}
+
+.headerDate {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--ink-2);
+  margin-bottom: 10px;
+}
+
+.statusBadge {
+  display: inline-block;
+  padding: 3px 10px;
+  background: var(--ink);
+  color: var(--paper);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  border-radius: 4px;
+}
+
+/* ── Score hero ──────────────────────────────────────────────────────────────── */
+.scoreHero {
+  background: var(--paper);
+  border: 1.5px solid var(--line);
+  border-radius: 14px 4px 14px 4px;
+  padding: 28px 32px;
+  margin-bottom: 20px;
+}
+
+.playerRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 0;
+}
+
+.playerInfo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+
+.avatar {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: var(--ink);
+  color: var(--paper);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+/* L'avatar du gagnant utilise la couleur accent */
+.winnerRow .avatar {
+  background: var(--accent);
+}
+
+.flagEl {
+  width: 22px;
+  height: 15px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.playerName {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.fullName {
+  font-family: 'Archivo', sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Nom du perdant légèrement atténué */
+.playerRow:not(.winnerRow) .fullName {
+  color: var(--ink-2);
+  font-weight: 500;
+}
+
+.seed {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--ink-2);
+  font-weight: 400;
+}
+
+.country {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--ink-2);
+  margin-top: 2px;
+}
+
+.sets {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.set {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 15px;
+  font-weight: 500;
+  border-radius: 6px;
+  border: 1.5px solid var(--line-soft);
+}
+
+/* Set remporté : fond sombre */
+.setWon {
+  background: var(--ink);
+  color: var(--paper);
+  border-color: var(--ink);
+}
+
+.setLost {
+  color: var(--ink-2);
+}
+
+.winMark {
+  font-size: 13px;
+  color: var(--accent);
+  margin-left: 4px;
+}
+
+.vsLine {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 2px 0;
+}
+
+.vsDivider {
+  flex: 1;
+  height: 1px;
+  background: var(--line-soft);
+}
+
+.vsText {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: var(--ink-2);
+}
+
+/* ── Comparaison des statistiques ────────────────────────────────────────────── */
+.statsSection {
+  background: var(--paper);
+  border: 1.5px solid var(--line);
+  border-radius: 4px 14px 4px 14px;
+  padding: 24px 32px;
+  margin-bottom: 20px;
+}
+
+.sectionTitle {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  margin: 0 0 18px 0;
+  font-weight: 500;
+}
+
+.statsGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.statsHeader {
+  display: grid;
+  grid-template-columns: 1fr 130px 1fr;
+  gap: 12px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.statsHeaderWinner {
+  text-align: right;
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.statsHeaderLoser {
+  text-align: left;
+  color: var(--ink-2);
+}
+
+/* Grille : [côté gagnant] [label centré] [côté perdant] */
+.statRow {
+  display: grid;
+  grid-template-columns: 1fr 130px 1fr;
+  gap: 12px;
+  align-items: center;
+}
+
+/* Côté gagnant : valeur à gauche, barre s'étend vers la droite (vers le centre) */
+.statLeft {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Côté perdant : barre s'étend depuis le centre vers la droite, valeur à droite */
+.statRight {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
+.statVal {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink);
+  white-space: nowrap;
+  min-width: 36px;
+}
+
+.statLeft .statVal {
+  text-align: left;
+  flex-shrink: 0;
+}
+
+.statRight .statVal {
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.statLabel {
+  text-align: center;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+
+/* Conteneur de barre — flex pour aligner la barre d'un côté ou de l'autre */
+.barWrapLeft {
+  flex: 1;
+  height: 5px;
+  background: var(--paper-2);
+  border-radius: 3px;
+  display: flex;
+  justify-content: flex-end; /* barre collée au bord droit (côté centre) */
+  overflow: hidden;
+  min-width: 0;
+}
+
+.barWrapRight {
+  flex: 1;
+  height: 5px;
+  background: var(--paper-2);
+  border-radius: 3px;
+  display: flex;
+  justify-content: flex-start; /* barre collée au bord gauche (côté centre) */
+  overflow: hidden;
+  min-width: 0;
+}
+
+/* Barre gagnant : accent violet */
+.bar {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 3px;
+  transition: width 0.4s ease;
+}
+
+/* Barre perdant : gris neutre */
+.barLoser {
+  height: 100%;
+  background: var(--ink-2);
+  border-radius: 3px;
+  transition: width 0.4s ease;
+}
+
+/* ── Section récapitulatif ────────────────────────────────────────────────────── */
+.recapSection {
+  background: var(--paper);
+  border: 1.5px solid var(--line);
+  border-radius: 14px 4px 14px 4px;
+  padding: 24px 32px;
+  margin-bottom: 20px;
+}
+
+.recapHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.recapHeader .sectionTitle {
+  margin-bottom: 0;
+}
+
+.generateBtn {
+  padding: 10px 20px;
+  background: var(--ink);
+  color: var(--paper);
+  border: none;
+  border-radius: 8px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.generateBtn:hover:not(:disabled) {
+  opacity: 0.82;
+}
+
+.generateBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.toggleBtn {
+  padding: 5px 12px;
+  background: transparent;
+  border: 1.5px solid var(--line-soft);
+  border-radius: 6px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--ink-2);
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.toggleBtn:hover {
+  border-color: var(--ink);
+  color: var(--ink);
+}
+
+.recapBody {
+  font-family: 'Archivo', sans-serif;
+  font-size: 15px;
+  line-height: 1.8;
+  color: var(--ink);
+}
+
+.recapBody p {
+  margin: 0 0 14px 0;
+}
+
+.recapBody p:last-child {
+  margin-bottom: 0;
+}
+
+.errorMsg {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--live);
+  margin: 12px 0 0;
+}
+
+/* ── Footer ──────────────────────────────────────────────────────────────────── */
+.foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 0 0;
+  border-top: 1.5px solid var(--line);
+  margin-top: 8px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+
+.footBack {
+  color: var(--ink-2);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.footBack:hover {
+  color: var(--ink);
+}
+
+/* ── Mobile ──────────────────────────────────────────────────────────────────── */
+@media (max-width: 600px) {
+  .page {
+    padding: 16px 16px 56px;
+  }
+
+  .scoreHero,
+  .statsSection,
+  .recapSection {
+    padding: 18px 16px;
+  }
+
+  .fullName {
+    font-size: 15px;
+  }
+
+  .avatar {
+    width: 38px;
+    height: 38px;
+    font-size: 11px;
+  }
+
+  .set {
+    width: 30px;
+    height: 30px;
+    font-size: 13px;
+  }
+
+  .statRow,
+  .statsHeader {
+    grid-template-columns: 1fr 90px 1fr;
+    gap: 6px;
+  }
+
+  .statLabel {
+    font-size: 8px;
+  }
+
+  .statVal {
+    font-size: 11px;
+    min-width: 28px;
+  }
+
+  .statsHeaderWinner,
+  .statsHeaderLoser {
+    font-size: 9px;
+  }
+}

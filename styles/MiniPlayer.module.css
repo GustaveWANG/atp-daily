@@ -1,0 +1,130 @@
+/* Mini-player fixe — glisse depuis le bas de l'écran */
+.miniPlayer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 200;
+  background: color-mix(in oklch, var(--ink) 85%, var(--paper));
+  border-top: 1px solid color-mix(in oklch, var(--paper) 12%, transparent);
+  padding: 10px 24px 14px;
+  transform: translateY(100%);
+  transition: transform 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+/* Visible quand le hero est sorti du viewport */
+.miniPlayerVisible {
+  transform: translateY(0);
+}
+
+/* Barre de progression mince en haut du mini-player */
+.miniProgress {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: color-mix(in oklch, var(--paper) 14%, transparent);
+  cursor: pointer;
+}
+
+.miniProgressFill {
+  height: 100%;
+  background: var(--clay);
+  transition: width 0.5s linear;
+}
+
+/* Corps : vignette | info | bouton */
+.miniBody {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+/* Vignette carrée */
+.miniThumb {
+  width: 40px;
+  height: 40px;
+  border-radius: 6px;
+  background: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Caveat', cursive;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--paper);
+  flex-shrink: 0;
+  letter-spacing: -0.02em;
+}
+
+/* Titre et temps */
+.miniInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.miniTitle {
+  font-family: 'Archivo', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--paper);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 3px;
+}
+
+.miniTimes {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: color-mix(in oklch, var(--paper) 48%, transparent);
+  display: flex;
+  gap: 0;
+  letter-spacing: 0.04em;
+}
+
+/* Séparateur entre les deux temps */
+.miniTimes span:first-child::after {
+  content: " /";
+  margin-right: 5px;
+}
+
+/* Bouton play/pause */
+.miniPlayBtn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1.5px solid var(--clay);
+  background: var(--clay);
+  color: var(--ink);
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.miniPlayBtn:hover {
+  opacity: 0.85;
+}
+
+/* ── Mobile ──────────────────────────────────────────────────────────────────── */
+@media (max-width: 600px) {
+  .miniPlayer {
+    padding: 8px 16px 12px;
+  }
+
+  /* Vignette masquée sur mobile — économise de la place */
+  .miniThumb {
+    display: none;
+  }
+
+  .miniTitle {
+    font-size: 12px;
+  }
+}
