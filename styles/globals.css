@@ -12,6 +12,8 @@
   --accent-soft: color-mix(in oklch, var(--accent) 14%, var(--paper));
   --clay: oklch(0.62 0.13 50);
   --live: oklch(0.55 0.2 30);
+  --navy: #1F2A6B;
+  --navy-light: #2B3A8C;
 }
 
 html,

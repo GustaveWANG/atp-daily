@@ -78,23 +78,20 @@ interface HomeProps {
   matches: Match[];
   initialRecaps: Record<string, string>;
   todayScript: string | null;
+  todayAudioUrl: string | null;
 }
 
-export default function Home({ matches, initialRecaps, todayScript }: HomeProps) {
-  const [recaps, setRecaps] = useState<Record<string, string>>(initialRecaps);
-  const [loading, setLoading] = useState<Record<string, boolean>>({});
-  const [errors, setErrors] = useState<Record<string, string>>({});
+// Audio de démo si aucun épisode n'a encore généré son MP3
+const FALLBACK_AUDIO = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3";
+
+export default function Home({ matches, initialRecaps, todayScript, todayAudioUrl }: HomeProps) {
+  const [recaps] = useState<Record<string, string>>(initialRecaps);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
-  const [podcastScript, setPodcastScript] = useState(todayScript ?? "");
-  const [podcastLoading, setPodcastLoading] = useState(false);
-  const [podcastError, setPodcastError] = useState("");
+  const [podcastScript] = useState(todayScript ?? "");
 
-  // Audio de substitution — remplacer par la génération TTS quand les crédits sont disponibles
-  const [audioUrl, setAudioUrl] = useState("https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3");
-  const [ttsLoading, setTtsLoading] = useState(false);
-  const [ttsError, setTtsError] = useState("");
-  const prevAudioUrl = useRef("");
+  // URL audio depuis Supabase, fallback sur SoundHelix tant que le cron n'a pas tourné
+  const [audioUrl] = useState(todayAudioUrl ?? FALLBACK_AUDIO);
 
   // Refs et état pour le lecteur et le mini-player
   const playerRef = useRef<PlayerHandle>(null);
@@ -122,91 +119,6 @@ export default function Home({ matches, initialRecaps, todayScript }: HomeProps)
 
   function scrollStrip(dir: number) {
     stripRef.current?.scrollBy({ left: dir * 300, behavior: "smooth" });
-  }
-
-  async function generateRecap(match: Match) {
-    setLoading((p) => ({ ...p, [match.id]: true }));
-    setErrors((p) => ({ ...p, [match.id]: "" }));
-    try {
-      const res = await fetch("/api/recap", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(match),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = (await res.json()) as { recap?: string; error?: string };
-      if (data.error) throw new Error(data.error);
-      setRecaps((p) => ({ ...p, [match.id]: data.recap ?? "" }));
-      setExpanded((p) => ({ ...p, [match.id]: true }));
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Unknown error";
-      setErrors((p) => ({ ...p, [match.id]: msg }));
-    } finally {
-      setLoading((p) => ({ ...p, [match.id]: false }));
-    }
-  }
-
-  async function generatePodcast() {
-    setPodcastLoading(true);
-    setPodcastError("");
-    try {
-      const res = await fetch("/api/podcast", { method: "POST" });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = (await res.json()) as { script?: string; error?: string };
-      if (data.error) throw new Error(data.error);
-      setPodcastScript(data.script ?? "");
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Unknown error";
-      setPodcastError(msg);
-    } finally {
-      setPodcastLoading(false);
-    }
-  }
-
-  async function generateAudio() {
-    if (!podcastScript) return;
-    setTtsLoading(true);
-    setTtsError("");
-    try {
-      const res = await fetch("/api/tts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ script: podcastScript }),
-      });
-      if (!res.ok) {
-        const data = (await res.json()) as { error?: string };
-        throw new Error(data.error ?? `HTTP ${res.status}`);
-      }
-
-      // Fallback quand la clé ElevenLabs n'est pas configurée
-      const contentType = res.headers.get("content-type") ?? "";
-      if (contentType.includes("application/json")) {
-        const data = (await res.json()) as { fallbackUrl?: string };
-        if (data.fallbackUrl) {
-          setAudioUrl(data.fallbackUrl);
-          return;
-        }
-      }
-
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      if (prevAudioUrl.current) URL.revokeObjectURL(prevAudioUrl.current);
-      prevAudioUrl.current = url;
-      setAudioUrl(url);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Unknown error";
-      setTtsError(msg);
-    } finally {
-      setTtsLoading(false);
-    }
-  }
-
-  function handlePlayBtn() {
-    if (!podcastScript) {
-      generatePodcast();
-    } else if (!audioUrl) {
-      generateAudio();
-    }
   }
 
   // Titres des chapitres calculés depuis les matchs chargés
@@ -306,32 +218,15 @@ export default function Home({ matches, initialRecaps, todayScript }: HomeProps)
               </>
             ) : (
               <>
-                <h1 className={styles.heroTitle}>
-                  {podcastLoading
-                    ? "Building your episode…"
-                    : "Generate today's episode →"}
-                </h1>
+                <h1 className={styles.heroTitle}>Today&apos;s episode</h1>
                 <p className={styles.heroSub}>
                   An audio recap of every ATP match today — generated after the
                   last point, narrated end to end by AI.
                 </p>
-                {!podcastLoading && (
-                  <button
-                    className={styles.generateEpisodeBtn}
-                    onClick={generatePodcast}
-                    disabled={podcastLoading}
-                  >
-                    Generate Daily Podcast Script
-                  </button>
-                )}
               </>
             )}
 
-            {podcastError && (
-              <p className={styles.heroError}>{podcastError}</p>
-            )}
-
-            {/* Lecteur complet quand l'audio est prêt, sinon contrôles simples */}
+            {/* Lecteur complet si l'audio est disponible, sinon waveform statique */}
             {audioUrl ? (
               <PodcastPlayer
                 src={audioUrl}
@@ -341,26 +236,14 @@ export default function Home({ matches, initialRecaps, todayScript }: HomeProps)
               />
             ) : (
               <div className={styles.heroBottom}>
-                <button
-                  className={styles.playBtn}
-                  onClick={handlePlayBtn}
-                  disabled={podcastLoading || ttsLoading}
-                  aria-label="Play episode"
-                >
-                  {ttsLoading ? "⏳" : "▶"}
-                </button>
                 <div className={styles.wave}>
                   {WAVE_HEIGHTS.map((h, i) => (
                     <div key={i} style={{ height: h }} />
                   ))}
                 </div>
-                <span className={styles.timeTag}>
-                  {podcastScript ? "Click ▶ for audio" : "18:30"}
-                </span>
+                <span className={styles.timeTag}>Coming soon</span>
               </div>
             )}
-
-            {ttsError && <p className={styles.heroError}>{ttsError}</p>}
           </div>
         </section>
 
@@ -432,28 +315,15 @@ export default function Home({ matches, initialRecaps, todayScript }: HomeProps)
                   </div>
                 </Link>
 
-                <button
-                  className={styles.recapBtn}
-                  onClick={() => {
-                    if (recaps[match.id]) {
-                      setExpanded((p) => ({ ...p, [match.id]: !isExpanded }));
-                    } else {
-                      generateRecap(match);
-                    }
-                  }}
-                  disabled={loading[match.id]}
-                >
-                  {loading[match.id]
-                    ? "Generating…"
-                    : recaps[match.id]
-                    ? isExpanded
-                      ? "▲ Hide recap"
-                      : "▼ Show recap"
-                    : "Generate Recap"}
-                </button>
-
-                {errors[match.id] && (
-                  <p className={styles.cardError}>{errors[match.id]}</p>
+                {recaps[match.id] ? (
+                  <button
+                    className={styles.recapBtn}
+                    onClick={() => setExpanded((p) => ({ ...p, [match.id]: !isExpanded }))}
+                  >
+                    {isExpanded ? "▲ Hide recap" : "▼ Show recap"}
+                  </button>
+                ) : (
+                  <span className={styles.recapComingSoon}>Recap coming soon</span>
                 )}
 
                 {isExpanded && recaps[match.id] && (
@@ -644,7 +514,7 @@ function dbMatchToMatch(m: DbMatch): Match {
 
 // ── chargement serveur : matchs + épisode du jour ────────────────────────────
 export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
-  const today = "2026-04-25";
+  const today = new Date().toISOString().slice(0, 10);
   try {
     // Import dynamique à l'intérieur du try — toute erreur (module, réseau) → fallback mockData
     const { supabaseAdmin } = await import("@/lib/supabase-server");
@@ -656,13 +526,13 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
         .order("created_at", { ascending: true }),
       supabaseAdmin
         .from("episodes")
-        .select("script")
+        .select("script, audio_url")
         .eq("date", today)
         .maybeSingle(),
     ]);
 
     const dbMatches = rawMatches as DbMatch[] | null;
-    const dbEpisode = rawEpisode as { script: string } | null;
+    const dbEpisode = rawEpisode as { script: string | null; audio_url: string | null } | null;
 
     const loadedMatches =
       dbMatches && dbMatches.length > 0
@@ -681,12 +551,13 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
         matches: loadedMatches,
         initialRecaps,
         todayScript: dbEpisode?.script ?? null,
+        todayAudioUrl: dbEpisode?.audio_url ?? null,
       },
     };
   } catch {
     // Fallback sur les données mock si Supabase est inaccessible
     return {
-      props: { matches: mockMatches, initialRecaps: {}, todayScript: null },
+      props: { matches: mockMatches, initialRecaps: {}, todayScript: null, todayAudioUrl: null },
     };
   }
 };

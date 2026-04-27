@@ -1,3 +1,5 @@
+// DÉPRÉCIÉ — génération déplacée vers /api/cron/generate-content (TICKET-5)
+// Conservé pour référence, ne plus appeler depuis le frontend
 import type { NextApiRequest, NextApiResponse } from "next";
 import Anthropic from "@anthropic-ai/sdk";
 import { matches } from "@/lib/mockData";

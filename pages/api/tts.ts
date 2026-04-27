@@ -1,3 +1,5 @@
+// DÉPRÉCIÉ — génération audio déplacée vers /api/cron/generate-audio (TICKET-6)
+// Conservé pour référence, ne plus appeler depuis le frontend
 import type { NextApiRequest, NextApiResponse } from "next";
 
 // Limite de taille de réponse augmentée pour l'audio MP3

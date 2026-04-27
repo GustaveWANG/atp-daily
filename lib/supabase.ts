@@ -28,10 +28,36 @@ export interface DbMatch {
   created_at: string;
 }
 
+export interface DbPlayerOfDay {
+  name: string;
+  country: string;
+  photo?: string;
+  stats: {
+    first_serve: number;
+    aces: number;
+    break_pts: string;
+  };
+  quote: string;
+}
+
+export interface DbInsight {
+  label: string;
+  value: string;
+  player: string;
+}
+
 export interface DbEpisode {
   id: string;
   date: string;
-  script: string;
+  script: string | null;
+  audio_url: string | null;
+  audio_duration: number | null;
+  chapter_titles: string[] | null;
+  player_of_day: DbPlayerOfDay | null;
+  insights: DbInsight[] | null;
+  the_read: string | null;
+  bracket_watch: string | null;
+  title: string | null;
   created_at: string;
 }
 

@@ -40,10 +40,22 @@ CREATE INDEX IF NOT EXISTS matches_tournament_idx ON matches (tournament);
 -- Table des épisodes podcast quotidiens
 -- Un seul épisode par date (contrainte UNIQUE sur date)
 CREATE TABLE IF NOT EXISTS episodes (
-  id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-  date        DATE        NOT NULL UNIQUE,
-  script      TEXT        NOT NULL,
-  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  id              UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  date            DATE        NOT NULL UNIQUE,
+  script          TEXT,
+  audio_url       TEXT,
+  audio_duration  INT,
+  -- Tableau de titres de chapitres, ex : ["Cold open", "Alcaraz v Sinner", ...]
+  chapter_titles  JSONB,
+  -- { name, country, photo?, stats: { first_serve, aces, break_pts }, quote }
+  player_of_day   JSONB,
+  -- [{ label, value, player }, ...]
+  insights        JSONB,
+  the_read        TEXT,
+  bracket_watch   TEXT,
+  -- Ex : "Madrid Open · April 25, 2026"
+  title           TEXT,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS episodes_date_idx ON episodes (date DESC);
