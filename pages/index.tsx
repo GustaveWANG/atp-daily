@@ -58,15 +58,31 @@ const FLAG: Record<string, string> = {
   FRA: "to right, #002395 0 33%, #ffffff 33% 66%, #ed2939 66%",
 };
 
-// ── épisodes récents fictifs ──────────────────────────────────────────────────
-const RECENT = [
-  { day: "TUE 22", title: "Madrid opens. The clay surprise nobody saw.", len: "16:42" },
-  { day: "MON 21", title: "Stuttgart aftermath: a serve clinic from Tiafoe.", len: "12:08" },
-  { day: "SUN 20", title: "Barcelona final — patience over power.", len: "21:30" },
-  { day: "SAT 19", title: "Three setters, two retirements, one weird tiebreak.", len: "17:55" },
-  { day: "FRI 18", title: "The mid-season slump nobody is talking about.", len: "14:20" },
-  { day: "THU 17", title: "Estoril roundup + a young Spaniard to watch.", len: "11:46" },
-];
+// ── format des épisodes récents (chargés depuis Supabase) ────────────────────
+
+interface RecentEpisode {
+  date: string;        // "2026-04-26"
+  day: string;         // "SUN 26"
+  title: string;       // depuis episodes.title, fallback sur la date
+  len: string;         // "16:42" ou "—"
+  audio_url: string | null;
+}
+
+// Formate la date "2026-04-26" en "SUN 26"
+function formatDay(dateStr: string): string {
+  const d = new Date(dateStr + "T00:00:00Z");
+  const dayName = d.toLocaleDateString("en-US", { weekday: "short", timeZone: "UTC" }).toUpperCase();
+  const dayNum = d.getUTCDate();
+  return `${dayName} ${dayNum}`;
+}
+
+// Formate une durée en secondes vers "MM:SS"
+function formatDuration(seconds: number | null): string {
+  if (!seconds || seconds <= 0) return "—";
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
 
 // Barres de waveform pour l'état pré-audio (avant chargement du lecteur complet)
 const WAVE_HEIGHTS = Array.from({ length: 48 }, (_, i) =>
@@ -79,12 +95,46 @@ interface HomeProps {
   initialRecaps: Record<string, string>;
   todayScript: string | null;
   todayAudioUrl: string | null;
+  todayHeadline: string | null;
+  recentEpisodes: RecentEpisode[];
+  displayDate: string; // "2026-04-26" — date du jour affiché (la plus récente avec des matchs)
 }
 
 // Audio de démo si aucun épisode n'a encore généré son MP3
 const FALLBACK_AUDIO = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3";
 
-export default function Home({ matches, initialRecaps, todayScript, todayAudioUrl }: HomeProps) {
+// Format compact "SUN · APR 26"
+function formatStripDate(dateStr: string): string {
+  const d = new Date(dateStr + "T00:00:00Z");
+  const day = d.toLocaleDateString("en-US", { weekday: "short", timeZone: "UTC" }).toUpperCase();
+  const month = d.toLocaleDateString("en-US", { month: "short", timeZone: "UTC" }).toUpperCase();
+  return `${day} · ${month} ${d.getUTCDate()}`;
+}
+
+// Format hero meta "Apr 26"
+function formatHeroDate(dateStr: string): string {
+  const d = new Date(dateStr + "T00:00:00Z");
+  const month = d.toLocaleDateString("en-US", { month: "short", timeZone: "UTC" });
+  return `${month} ${d.getUTCDate()}`;
+}
+
+// Abrège les noms de rounds ATP pour l'affichage compact
+function shortRound(round: string): string {
+  const map: Record<string, string> = {
+    "First Round": "R1",
+    "Second Round": "R2",
+    "Third Round": "R3",
+    "Round of 16": "R16",
+    "Quarterfinal": "QF",
+    "Quarterfinals": "QF",
+    "Semifinal": "SF",
+    "Semifinals": "SF",
+    "Final": "F",
+  };
+  return map[round] ?? round.replace("Round of ", "R");
+}
+
+export default function Home({ matches, initialRecaps, todayScript, todayAudioUrl, todayHeadline, recentEpisodes, displayDate }: HomeProps) {
   const [recaps] = useState<Record<string, string>>(initialRecaps);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
@@ -171,15 +221,18 @@ export default function Home({ matches, initialRecaps, todayScript, todayAudioUr
         <div className={styles.strip}>
           <div className={styles.stripCell}>
             <div className={styles.stripKey}>Day:</div>
-            <div className={styles.stripVal}>SAT · APR 25</div>
+            <div className={styles.stripVal}>{formatStripDate(displayDate)}</div>
           </div>
           <div className={`${styles.stripCell} ${styles.stripCenter}`}>
             <div className={styles.stripKey}>Tournament:</div>
-            <div className={styles.stripVal}>MADRID OPEN · R32</div>
+            <div className={styles.stripVal}>
+              {(matches[0]?.tournament ?? "ATP").toUpperCase()}
+              {matches[0]?.round && ` · ${shortRound(matches[0].round)}`}
+            </div>
           </div>
           <div className={`${styles.stripCell} ${styles.stripRight}`}>
             <div className={styles.stripKey}>Surface:</div>
-            <div className={styles.stripVal}>CLAY · OUTDOOR</div>
+            <div className={styles.stripVal}>{(matches[0]?.surface ?? "CLAY").toUpperCase()} · OUTDOOR</div>
           </div>
         </div>
 
@@ -192,14 +245,14 @@ export default function Home({ matches, initialRecaps, todayScript, todayAudioUr
                 ● TODAY&apos;S EPISODE · EP 118
               </span>
               <span className={styles.meta}>
-                Apr 25 · Madrid Open · {matches.length} matches
+                {formatHeroDate(displayDate)} · {matches[0]?.tournament ?? "ATP"} · {matches.length} matches
               </span>
             </div>
 
             {podcastScript ? (
               <>
                 <h1 className={styles.heroTitle}>
-                  Today&apos;s daily ATP recap — generated by AI.
+                  {todayHeadline ?? "Today's daily ATP recap — generated by AI."}
                 </h1>
                 <p className={styles.heroSub}>{scriptExcerpt(podcastScript)}…</p>
                 <div className={styles.heroChapters}>
@@ -376,16 +429,22 @@ export default function Home({ matches, initialRecaps, todayScript, todayAudioUr
               <span className={styles.meta}>last 7 days</span>
             </div>
             <div className={styles.recentList}>
-              {RECENT.map((ep, i) => (
-                <div key={i} className={styles.recentItem}>
-                  <span className={styles.recentDay}>{ep.day}</span>
-                  <span className={styles.recentTitle}>{ep.title}</span>
-                  <span className={styles.recentLen}>
-                    <span className={styles.recentPlay}>▶</span>
-                    {ep.len}
-                  </span>
+              {recentEpisodes.length === 0 ? (
+                <div className={styles.recentItem}>
+                  <span className={styles.recentTitle}>No previous episodes yet.</span>
                 </div>
-              ))}
+              ) : (
+                recentEpisodes.map((ep) => (
+                  <div key={ep.date} className={styles.recentItem}>
+                    <span className={styles.recentDay}>{ep.day}</span>
+                    <span className={styles.recentTitle}>{ep.title}</span>
+                    <span className={styles.recentLen}>
+                      <span className={styles.recentPlay}>▶</span>
+                      {ep.len}
+                    </span>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>
@@ -456,7 +515,15 @@ export default function Home({ matches, initialRecaps, todayScript, todayAudioUr
 
         {/* ── Footer ── */}
         <div className={styles.foot}>
-          <span>ATP DAILY · Madrid Open · April 25, 2026</span>
+          <span>
+            ATP DAILY · {matches[0]?.tournament ?? "ATP"} ·{" "}
+            {new Date(displayDate + "T00:00:00Z").toLocaleDateString("en-US", {
+              month: "long",
+              day: "numeric",
+              year: "numeric",
+              timeZone: "UTC",
+            })}
+          </span>
           <span>↓ subscribe to the daily episode</span>
         </div>
 
@@ -516,23 +583,58 @@ function dbMatchToMatch(m: DbMatch): Match {
 export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
   const today = new Date().toISOString().slice(0, 10);
   try {
-    // Import dynamique à l'intérieur du try — toute erreur (module, réseau) → fallback mockData
     const { supabaseAdmin } = await import("@/lib/supabase-server");
-    const [{ data: rawMatches }, { data: rawEpisode }] = await Promise.all([
+
+    // Date affichée = date la plus récente avec au moins un match en base.
+    // Permet de toujours montrer du contenu réel même si le cron du jour n'a pas encore tourné.
+    const { data: latestRows } = await supabaseAdmin
+      .from("matches")
+      .select("date")
+      .order("date", { ascending: false })
+      .limit(1);
+    const displayDate =
+      (latestRows as { date: string }[] | null)?.[0]?.date ?? today;
+
+    const [{ data: rawMatches }, { data: rawEpisode }, { data: rawRecent }] = await Promise.all([
       supabaseAdmin
         .from("matches")
         .select("*")
-        .eq("date", today)
+        .eq("date", displayDate)
         .order("created_at", { ascending: true }),
       supabaseAdmin
         .from("episodes")
-        .select("script, audio_url")
-        .eq("date", today)
+        .select("script, audio_url, headline")
+        .eq("date", displayDate)
         .maybeSingle(),
+      // 6 derniers épisodes antérieurs au displayDate, du plus récent au plus ancien
+      supabaseAdmin
+        .from("episodes")
+        .select("date, title, audio_url, audio_duration")
+        .lt("date", displayDate)
+        .order("date", { ascending: false })
+        .limit(6),
     ]);
 
     const dbMatches = rawMatches as DbMatch[] | null;
-    const dbEpisode = rawEpisode as { script: string | null; audio_url: string | null } | null;
+    const dbEpisode = rawEpisode as {
+      script: string | null;
+      audio_url: string | null;
+      headline: string | null;
+    } | null;
+    const dbRecent = rawRecent as Array<{
+      date: string;
+      title: string | null;
+      audio_url: string | null;
+      audio_duration: number | null;
+    }> | null;
+
+    const recentEpisodes: RecentEpisode[] = (dbRecent ?? []).map((ep) => ({
+      date: ep.date,
+      day: formatDay(ep.date),
+      title: ep.title ?? `Episode of ${ep.date}`,
+      len: formatDuration(ep.audio_duration),
+      audio_url: ep.audio_url,
+    }));
 
     const loadedMatches =
       dbMatches && dbMatches.length > 0
@@ -552,12 +654,23 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
         initialRecaps,
         todayScript: dbEpisode?.script ?? null,
         todayAudioUrl: dbEpisode?.audio_url ?? null,
+        todayHeadline: dbEpisode?.headline ?? null,
+        recentEpisodes,
+        displayDate,
       },
     };
   } catch {
     // Fallback sur les données mock si Supabase est inaccessible
     return {
-      props: { matches: mockMatches, initialRecaps: {}, todayScript: null, todayAudioUrl: null },
+      props: {
+        matches: mockMatches,
+        initialRecaps: {},
+        todayScript: null,
+        todayAudioUrl: null,
+        todayHeadline: null,
+        recentEpisodes: [],
+        displayDate: today,
+      },
     };
   }
 };

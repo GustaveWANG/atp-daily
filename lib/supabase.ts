@@ -58,6 +58,7 @@ export interface DbEpisode {
   the_read: string | null;
   bracket_watch: string | null;
   title: string | null;
+  headline: string | null;
   created_at: string;
 }
 

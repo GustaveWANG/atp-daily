@@ -190,3 +190,30 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* ── Mobile ────────────────────────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  /* Espacement réduit entre les contrôles pour qu'ils tiennent en une rangée */
+  .controls {
+    gap: 8px;
+  }
+
+  .playBtn {
+    width: 48px;
+    height: 48px;
+  }
+
+  .skipBtn {
+    width: 36px;
+    height: 36px;
+  }
+
+  .skipIcon {
+    font-size: 12px;
+  }
+
+  .speedBtn {
+    padding: 4px 8px;
+    font-size: 10px;
+  }
+}

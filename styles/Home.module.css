@@ -733,3 +733,186 @@
 .matchLink:hover {
   opacity: 0.75;
 }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Responsive — tablette ≤ 900px : grilles à 2 colonnes deviennent 1 colonne,
+   le wordmark surdimensionné se réduit pour ne plus déborder.
+   ─────────────────────────────────────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .page {
+    padding: 20px 24px 56px;
+  }
+
+  .heroWordmark {
+    font-size: 140px;
+    top: 40px;
+  }
+
+  .heroCard {
+    margin-top: 60px;
+  }
+
+  .heroTitle {
+    font-size: 36px;
+  }
+
+  /* Player of the day + Recent episodes empilés */
+  .row2 {
+    grid-template-columns: 1fr;
+  }
+
+  /* Insights : 4 colonnes → 2x2 */
+  .insGrid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  /* Photo joueur masquée, le tag récupère la pleine largeur */
+  .potdPhoto {
+    display: none;
+  }
+  .potdTag {
+    max-width: 100%;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Responsive — mobile ≤ 640px : tout est compacté, navItems et wordmark
+   masqués, le strip se stack verticalement.
+   ─────────────────────────────────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .page {
+    padding: 16px 16px 64px;
+  }
+
+  /* Nav : on ne garde que le logo + CTA, les liens disparaissent */
+  .navItems {
+    display: none;
+  }
+  .navCta {
+    font-size: 16px;
+    padding: 5px 12px;
+  }
+  .logo {
+    font-size: 24px;
+  }
+
+  /* Strip : 3 colonnes → empilées verticalement */
+  .strip {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    padding: 10px 4px;
+  }
+  .stripCenter,
+  .stripRight {
+    text-align: left;
+  }
+  .stripVal {
+    font-size: 13px;
+    letter-spacing: 0.08em;
+  }
+
+  /* Hero : wordmark masqué (illisible à cette taille), card collée en haut */
+  .hero {
+    padding: 18px 0 18px;
+  }
+  .heroWordmark {
+    display: none;
+  }
+  .heroCard {
+    margin-top: 0;
+    padding: 18px 18px 18px;
+    border-radius: 18px 4px 18px 4px;
+    box-shadow: 5px 5px 0 var(--ink);
+  }
+  .heroTop {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+  .heroTitle {
+    font-size: 26px;
+    line-height: 1.05;
+    margin: 10px 0 8px;
+  }
+  .heroSub {
+    font-size: 13px;
+  }
+  .heroChapters {
+    gap: 5px;
+  }
+  .heroCh {
+    font-size: 10px;
+    padding: 2px 7px;
+  }
+
+  /* Section header : flèches du carrousel cachées (le scroll tactile suffit) */
+  .secH {
+    font-size: 10px;
+  }
+  .secArrows {
+    display: none;
+  }
+
+  /* Match strip : cartes plus étroites + scroll naturel */
+  .matchCard {
+    flex: 0 0 240px;
+    padding: 12px 14px;
+  }
+  .matchName {
+    font-size: 14px;
+  }
+  .matchScore {
+    font-size: 12px;
+  }
+
+  /* Player of the day : compact, name réduit */
+  .potd {
+    padding: 18px;
+    border-radius: 18px 4px 18px 4px;
+  }
+  .potdName {
+    font-size: 38px;
+  }
+  .potdStats {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
+  }
+  .potdStat b {
+    font-size: 20px;
+  }
+
+  /* Recent episodes : padding réduit, titre moins gros */
+  .recent {
+    padding: 14px 16px;
+    border-radius: 18px 4px 18px 4px;
+  }
+  .recentH h3 {
+    font-size: 17px;
+  }
+  .recentTitle {
+    font-size: 12px;
+  }
+  .recentDay {
+    width: 46px;
+    font-size: 10px;
+  }
+
+  /* Insights : 2 cols → 1 col */
+  .insGrid {
+    grid-template-columns: 1fr;
+  }
+  .insNum {
+    font-size: 44px;
+  }
+  .insTake h4 {
+    font-size: 17px;
+  }
+
+  /* Footer : empilé verticalement pour ne pas écraser le texte */
+  .foot {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    font-size: 9px;
+  }
+}

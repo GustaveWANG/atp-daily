@@ -32,6 +32,7 @@ interface MatchRow {
 
 interface EpisodeMetadata {
   title: string;
+  headline: string;
   chapter_titles: string[];
   player_of_day: {
     name: string;
@@ -84,6 +85,7 @@ const METADATA_SYSTEM_PROMPT = `You are a JSON generator for ATP Daily, a tennis
 Required structure:
 {
   "title": "string — e.g. 'Madrid Open · April 25, 2026'",
+  "headline": "string — a punchy sports-journalist headline summarizing the day, 50 to 80 characters, no markdown, no quotation marks, no trailing period. Think The Athletic or ESPN front-page style: name a key player or storyline, suggest stakes or drama. Examples of tone: 'Sinner's clinical Madrid statement leaves Moller helpless', 'Lehecka emerges as the bottom half's quietest threat', 'Seven matches, three upsets, one Czech revolution on clay'",
   "chapter_titles": ["4 to 6 chapter names derived from the episode content"],
   "player_of_day": {
     "name": "string",
@@ -327,6 +329,7 @@ export default async function handler(
         date,
         script: script || null,
         title: meta.title ?? null,
+        headline: meta.headline ?? null,
         chapter_titles: meta.chapter_titles ?? null,
         player_of_day: meta.player_of_day ?? null,
         insights: meta.insights ?? null,
