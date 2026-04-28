@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { GetServerSideProps } from "next";
 import { matches as mockMatches, type Match, type Surface, type MatchStats } from "@/lib/mockData";
 import type { DbMatch } from "@/lib/supabase";
+import { flagBackground } from "@/lib/flags";
 import styles from "@/styles/Match.module.css";
 
 // Initiales à partir d'un nom complet (ex. "Carlos Alcaraz" → "CA")
@@ -24,25 +25,6 @@ function parseSets(score: string): { winner: string[]; loser: string[] } {
     loser: sets.map((s) => s.split("-")[1] ?? "—"),
   };
 }
-
-// Gradients CSS par code pays (identique à la page d'accueil)
-const FLAG: Record<string, string> = {
-  ESP: "to bottom, #aa1a1a 0 33%, #f1c20a 33% 66%, #aa1a1a 66%",
-  ITA: "to right, #008c45 0 33%, #f4f9ff 33% 66%, #cd212a 66%",
-  GER: "to bottom, #1a1814 0 33%, #d12a2a 33% 66%, #f0c419 66%",
-  NOR: "to right, #c6363c 0 50%, #1a3a8a 50%",
-  DEN: "to right, #c6363c 0 100%",
-  ARG: "to bottom, #74acdf 0 33%, #ffffff 33% 66%, #74acdf 66%",
-  CHI: "to bottom, #d52b1e 0 50%, #ffffff 50%",
-  CAN: "to right, #c6363c 0 30%, #fff 30% 70%, #c6363c 70%",
-  RUS: "to bottom, #ffffff 0 33%, #1a3a8a 33% 66%, #c6363c 66%",
-  USA: "to bottom, #b22234 0 50%, #fff 50%",
-  AUS: "to bottom, #0d4ea2 0 50%, #c6363c 50%",
-  SRB: "to bottom, #0c4076 0 33%, #ffffff 33% 66%, #c6363c 66%",
-  GRE: "to bottom, #0d4ea2 0 50%, #ffffff 50%",
-  POL: "to bottom, #ffffff 0 50%, #c6363c 50%",
-  FRA: "to right, #002395 0 33%, #ffffff 33% 66%, #ed2939 66%",
-};
 
 // Statistiques standard affichées dans la comparaison
 const STAT_ROWS: Array<{
@@ -148,9 +130,7 @@ export default function MatchDetail({ match, initialRecap }: Props) {
               <span className={styles.avatar}>{initials(match.winner.name)}</span>
               <span
                 className={styles.flagEl}
-                style={{
-                  background: `linear-gradient(${FLAG[match.winner.country] ?? "to right, #888 0 100%"})`,
-                }}
+                style={{ background: flagBackground(match.winner.country) }}
               />
               <div className={styles.playerName}>
                 <span className={styles.fullName}>
@@ -190,9 +170,7 @@ export default function MatchDetail({ match, initialRecap }: Props) {
               <span className={styles.avatar}>{initials(match.loser.name)}</span>
               <span
                 className={styles.flagEl}
-                style={{
-                  background: `linear-gradient(${FLAG[match.loser.country] ?? "to right, #888 0 100%"})`,
-                }}
+                style={{ background: flagBackground(match.loser.country) }}
               />
               <div className={styles.playerName}>
                 <span className={styles.fullName}>
