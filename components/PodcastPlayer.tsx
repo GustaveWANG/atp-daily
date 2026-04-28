@@ -42,6 +42,38 @@ const PodcastPlayer = forwardRef<PlayerHandle, PodcastPlayerProps>(
     const [currentTime, setCurrentTime] = useState(0);
     const [audioDuration, setAudioDuration] = useState(0);
     const [speed, setSpeed] = useState(1);
+    const [resolvedSrc, setResolvedSrc] = useState<string | null>(null);
+
+    // Téléchargement préalable en blob → Object URL.
+    // iOS Safari ne sait pas lire la durée d'un MP3 ElevenLabs streamé tant
+    // que tout le fichier n'est pas connu, ce qui bloque la lecture à ~11s.
+    // En fetchant la totalité avant lecture, on donne un fichier complet à
+    // l'élément audio, qui peut alors seeker n'importe où.
+    useEffect(() => {
+      if (!src) return;
+      let blobUrl: string | null = null;
+      let cancelled = false;
+
+      fetch(src)
+        .then((r) => {
+          if (!r.ok) throw new Error(`HTTP ${r.status}`);
+          return r.blob();
+        })
+        .then((blob) => {
+          if (cancelled) return;
+          blobUrl = URL.createObjectURL(blob);
+          setResolvedSrc(blobUrl);
+        })
+        .catch(() => {
+          // Si le fetch échoue (CORS, réseau), on retombe sur l'URL directe
+          if (!cancelled) setResolvedSrc(src);
+        });
+
+      return () => {
+        cancelled = true;
+        if (blobUrl) URL.revokeObjectURL(blobUrl);
+      };
+    }, [src]);
 
     // Durée effective : on privilégie celle de l'élément audio si elle paraît
     // crédible (≥ fallback − 2s pour absorber les petites imprécisions), sinon
@@ -121,37 +153,20 @@ const PodcastPlayer = forwardRef<PlayerHandle, PodcastPlayerProps>(
 
     return (
       <div className={styles.player}>
-        {/* Élément audio caché — toute la lecture passe par cet élément.
-            preload="metadata" + workaround iOS Safari : si la durée initiale
-            est invalide (Infinity ou bien plus courte que prévu), on seek à
-            l'extrême pour forcer le navigateur à charger toute la métadonnée
-            MP3 puis on revient à 0. */}
+        {/* Élément audio caché — alimenté par un Object URL (blob téléchargé
+            en amont) pour que la durée et le seek fonctionnent correctement
+            sur iOS Safari, même quand le MP3 ElevenLabs n'a pas de Xing
+            header. Tant que le blob n'est pas prêt, src reste vide. */}
         <audio
           ref={audioRef}
-          src={src}
-          preload="metadata"
+          src={resolvedSrc ?? undefined}
+          preload="auto"
           onPlay={() => setPlaying(true)}
           onPause={() => setPlaying(false)}
           onEnded={() => setPlaying(false)}
           onLoadedMetadata={(e) => {
-            const audio = e.currentTarget;
-            const d = audio.duration;
-            const looksWrong =
-              !isFinite(d) ||
-              isNaN(d) ||
-              d <= 0 ||
-              (fb > 0 && d < fb - 2);
-            if (looksWrong) {
-              const onSeeked = () => {
-                audio.removeEventListener("seeked", onSeeked);
-                audio.currentTime = 0;
-                setAudioDuration(audio.duration);
-              };
-              audio.addEventListener("seeked", onSeeked);
-              audio.currentTime = 1e101;
-            } else {
-              setAudioDuration(d);
-            }
+            const d = e.currentTarget.duration;
+            if (isFinite(d) && d > 0) setAudioDuration(d);
           }}
           onDurationChange={(e) => {
             const d = e.currentTarget.duration;
