@@ -31,16 +31,24 @@ export interface PlayerHandle {
 interface PodcastPlayerProps {
   src: string;
   chapterTitles?: string[];
+  fallbackDuration?: number;
   onStateChange?: (state: PlayerState) => void;
 }
 
 const PodcastPlayer = forwardRef<PlayerHandle, PodcastPlayerProps>(
-  function PodcastPlayer({ src, chapterTitles = [], onStateChange }, ref) {
+  function PodcastPlayer({ src, chapterTitles = [], fallbackDuration, onStateChange }, ref) {
     const audioRef = useRef<HTMLAudioElement>(null);
     const [playing, setPlaying] = useState(false);
     const [currentTime, setCurrentTime] = useState(0);
-    const [duration, setDuration] = useState(0);
+    const [audioDuration, setAudioDuration] = useState(0);
     const [speed, setSpeed] = useState(1);
+
+    // Durée effective : on privilégie celle de l'élément audio si elle paraît
+    // crédible (≥ fallback − 2s pour absorber les petites imprécisions), sinon
+    // on retombe sur la valeur DB. Évite la barre bloquée à 11s sur iOS Safari
+    // tant que les métadonnées MP3 ne sont pas complètement chargées.
+    const fb = fallbackDuration ?? 0;
+    const duration = audioDuration > 0 && audioDuration >= fb - 2 ? audioDuration : fb;
 
     // Notifie le parent à chaque changement d'état de lecture
     useEffect(() => {
@@ -113,14 +121,42 @@ const PodcastPlayer = forwardRef<PlayerHandle, PodcastPlayerProps>(
 
     return (
       <div className={styles.player}>
-        {/* Élément audio caché — toute la lecture passe par cet élément */}
+        {/* Élément audio caché — toute la lecture passe par cet élément.
+            preload="metadata" + workaround iOS Safari : si la durée initiale
+            est invalide (Infinity ou bien plus courte que prévu), on seek à
+            l'extrême pour forcer le navigateur à charger toute la métadonnée
+            MP3 puis on revient à 0. */}
         <audio
           ref={audioRef}
           src={src}
+          preload="metadata"
           onPlay={() => setPlaying(true)}
           onPause={() => setPlaying(false)}
           onEnded={() => setPlaying(false)}
-          onDurationChange={(e) => setDuration(e.currentTarget.duration)}
+          onLoadedMetadata={(e) => {
+            const audio = e.currentTarget;
+            const d = audio.duration;
+            const looksWrong =
+              !isFinite(d) ||
+              isNaN(d) ||
+              d <= 0 ||
+              (fb > 0 && d < fb - 2);
+            if (looksWrong) {
+              const onSeeked = () => {
+                audio.removeEventListener("seeked", onSeeked);
+                audio.currentTime = 0;
+                setAudioDuration(audio.duration);
+              };
+              audio.addEventListener("seeked", onSeeked);
+              audio.currentTime = 1e101;
+            } else {
+              setAudioDuration(d);
+            }
+          }}
+          onDurationChange={(e) => {
+            const d = e.currentTarget.duration;
+            if (isFinite(d) && d > 0) setAudioDuration(d);
+          }}
           onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
         />
 

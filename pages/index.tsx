@@ -89,6 +89,7 @@ interface HomeProps {
   initialRecaps: Record<string, string>;
   todayScript: string | null;
   todayAudioUrl: string | null;
+  todayAudioDuration: number | null;
   todayHeadline: string | null;
   recentEpisodes: RecentEpisode[];
   displayDate: string; // "2026-04-26" — date du jour affiché (la plus récente avec des matchs)
@@ -128,7 +129,7 @@ function shortRound(round: string): string {
   return map[round] ?? round.replace("Round of ", "R");
 }
 
-export default function Home({ matches, initialRecaps, todayScript, todayAudioUrl, todayHeadline, recentEpisodes, displayDate }: HomeProps) {
+export default function Home({ matches, initialRecaps, todayScript, todayAudioUrl, todayAudioDuration, todayHeadline, recentEpisodes, displayDate }: HomeProps) {
   const [recaps] = useState<Record<string, string>>(initialRecaps);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
@@ -272,6 +273,7 @@ export default function Home({ matches, initialRecaps, todayScript, todayAudioUr
               <PodcastPlayer
                 src={audioUrl}
                 chapterTitles={CHAPTER_TITLES}
+                {...(todayAudioDuration ? { fallbackDuration: todayAudioDuration } : {})}
                 onStateChange={setPlayerState}
                 ref={playerRef}
               />
@@ -591,7 +593,7 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
         .order("created_at", { ascending: true }),
       supabaseAdmin
         .from("episodes")
-        .select("script, audio_url, headline")
+        .select("script, audio_url, audio_duration, headline")
         .eq("date", displayDate)
         .maybeSingle(),
       // 6 derniers épisodes antérieurs au displayDate, du plus récent au plus ancien
@@ -607,6 +609,7 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
     const dbEpisode = rawEpisode as {
       script: string | null;
       audio_url: string | null;
+      audio_duration: number | null;
       headline: string | null;
     } | null;
     const dbRecent = rawRecent as Array<{
@@ -642,6 +645,7 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
         initialRecaps,
         todayScript: dbEpisode?.script ?? null,
         todayAudioUrl: dbEpisode?.audio_url ?? null,
+        todayAudioDuration: dbEpisode?.audio_duration ?? null,
         todayHeadline: dbEpisode?.headline ?? null,
         recentEpisodes,
         displayDate,
@@ -655,6 +659,7 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
         initialRecaps: {},
         todayScript: null,
         todayAudioUrl: null,
+        todayAudioDuration: null,
         todayHeadline: null,
         recentEpisodes: [],
         displayDate: today,

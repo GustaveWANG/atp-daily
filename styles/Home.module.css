@@ -811,13 +811,14 @@
     letter-spacing: 0.08em;
   }
 
-  /* Hero : wordmark conservé en plus petit pour rester lisible derrière la card */
+  /* Hero : wordmark plus grand, positionné pour que la card en couvre la moitié
+     basse — comme sur desktop. */
   .hero {
     padding: 50px 0 18px;
   }
   .heroWordmark {
-    font-size: 78px;
-    top: 8px;
+    font-size: 92px;
+    top: 48px;
     letter-spacing: -0.04em;
   }
   .heroCard {
