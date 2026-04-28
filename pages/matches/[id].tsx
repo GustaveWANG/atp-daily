@@ -1,8 +1,9 @@
 import Head from "next/head";
 import Link from "next/link";
 import { useState } from "react";
-import type { GetStaticPaths, GetStaticProps } from "next";
-import { matches, type Match, type MatchStats } from "@/lib/mockData";
+import type { GetServerSideProps } from "next";
+import { matches as mockMatches, type Match, type Surface, type MatchStats } from "@/lib/mockData";
+import type { DbMatch } from "@/lib/supabase";
 import styles from "@/styles/Match.module.css";
 
 // Initiales à partir d'un nom complet (ex. "Carlos Alcaraz" → "CA")
@@ -62,13 +63,14 @@ function barPct(val: number, other: number): number {
 
 interface Props {
   match: Match;
+  initialRecap: string;
 }
 
-export default function MatchDetail({ match }: Props) {
-  const [recap, setRecap] = useState("");
+export default function MatchDetail({ match, initialRecap }: Props) {
+  const [recap, setRecap] = useState(initialRecap);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(Boolean(initialRecap));
 
   const sets = parseSets(match.score);
 
@@ -347,16 +349,69 @@ export default function MatchDetail({ match }: Props) {
   );
 }
 
-export const getStaticPaths: GetStaticPaths = async () => {
+// Conversion d'une ligne Supabase vers le type Match attendu par le composant
+function dbMatchToMatch(m: DbMatch): Match {
   return {
-    paths: matches.map((m) => ({ params: { id: m.id } })),
-    fallback: false,
+    id: m.id,
+    tournament: m.tournament,
+    round: m.round,
+    surface: m.surface as Surface,
+    date: m.date,
+    winner: {
+      name: m.winner_name,
+      country: m.winner_country,
+      ...(m.winner_seed !== null ? { seed: m.winner_seed } : {}),
+    },
+    loser: {
+      name: m.loser_name,
+      country: m.loser_country,
+      ...(m.loser_seed !== null ? { seed: m.loser_seed } : {}),
+    },
+    score: m.score,
+    winnerStats: {
+      aces: m.winner_stats.aces,
+      doubleFaults: m.winner_stats.double_faults,
+      firstServePercentage: m.winner_stats.first_serve_pct,
+      breakPointsConverted: m.winner_stats.bp_converted,
+      breakPointsTotal: m.winner_stats.bp_total,
+    },
+    loserStats: {
+      aces: m.loser_stats.aces,
+      doubleFaults: m.loser_stats.double_faults,
+      firstServePercentage: m.loser_stats.first_serve_pct,
+      breakPointsConverted: m.loser_stats.bp_converted,
+      breakPointsTotal: m.loser_stats.bp_total,
+    },
   };
-};
+}
 
-export const getStaticProps: GetStaticProps<Props> = async ({ params }) => {
+export const getServerSideProps: GetServerSideProps<Props> = async ({ params }) => {
   const id = Array.isArray(params?.id) ? params.id[0] : params?.id;
-  const match = matches.find((m) => m.id === id) ?? null;
-  if (!match) return { notFound: true };
-  return { props: { match } };
+  if (!id) return { notFound: true };
+
+  // Tentative de chargement depuis Supabase ; fallback sur les mocks si indisponible
+  try {
+    const { supabaseAdmin } = await import("@/lib/supabase-server");
+    const { data } = await supabaseAdmin
+      .from("matches")
+      .select("*")
+      .eq("id", id)
+      .maybeSingle();
+
+    if (data) {
+      const dbMatch = data as DbMatch;
+      return {
+        props: {
+          match: dbMatchToMatch(dbMatch),
+          initialRecap: dbMatch.recap ?? "",
+        },
+      };
+    }
+  } catch {
+    // Supabase indisponible : on retombe sur les mocks ci-dessous
+  }
+
+  const mock = mockMatches.find((m) => m.id === id);
+  if (!mock) return { notFound: true };
+  return { props: { match: mock, initialRecap: "" } };
 };

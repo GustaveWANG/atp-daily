@@ -811,15 +811,17 @@
     letter-spacing: 0.08em;
   }
 
-  /* Hero : wordmark masqué (illisible à cette taille), card collée en haut */
+  /* Hero : wordmark conservé en plus petit pour rester lisible derrière la card */
   .hero {
-    padding: 18px 0 18px;
+    padding: 50px 0 18px;
   }
   .heroWordmark {
-    display: none;
+    font-size: 78px;
+    top: 8px;
+    letter-spacing: -0.04em;
   }
   .heroCard {
-    margin-top: 0;
+    margin-top: 56px;
     padding: 18px 18px 18px;
     border-radius: 18px 4px 18px 4px;
     box-shadow: 5px 5px 0 var(--ink);
