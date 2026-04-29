@@ -7,16 +7,6 @@ import type { DbMatch } from "@/lib/supabase";
 import { flagBackground } from "@/lib/flags";
 import styles from "@/styles/Match.module.css";
 
-// Initiales à partir d'un nom complet (ex. "Carlos Alcaraz" → "CA")
-function initials(name: string): string {
-  return name
-    .split(" ")
-    .map((w) => w[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
-}
-
 // Parse le score "6-3, 7-5" en tableaux de sets pour chaque joueur
 function parseSets(score: string): { winner: string[]; loser: string[] } {
   const sets = score.split(",").map((s) => s.trim());
@@ -121,13 +111,12 @@ export default function MatchDetail({ match, initialRecap }: Props) {
           <div className={styles.statusBadge}>FINAL</div>
         </header>
 
-        {/* ── Hero score : deux joueurs, drapeaux, avatars, sets ── */}
+        {/* ── Hero score : deux joueurs, drapeaux, sets ── */}
         <section className={styles.scoreHero}>
 
           {/* Ligne gagnant */}
           <div className={`${styles.playerRow} ${styles.winnerRow}`}>
             <div className={styles.playerInfo}>
-              <span className={styles.avatar}>{initials(match.winner.name)}</span>
               <span
                 className={styles.flagEl}
                 style={{ background: flagBackground(match.winner.country) }}
@@ -167,7 +156,6 @@ export default function MatchDetail({ match, initialRecap }: Props) {
           {/* Ligne perdant */}
           <div className={styles.playerRow}>
             <div className={styles.playerInfo}>
-              <span className={styles.avatar}>{initials(match.loser.name)}</span>
               <span
                 className={styles.flagEl}
                 style={{ background: flagBackground(match.loser.country) }}

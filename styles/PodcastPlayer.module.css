@@ -13,6 +13,9 @@
   height: 36px;
   cursor: pointer;
   user-select: none;
+  /* Empêche le navigateur d'interpréter un drag horizontal comme un scroll
+     sur mobile — sans ça, iOS pouvait avaler les pointermove. */
+  touch-action: none;
 }
 
 .waveBar {

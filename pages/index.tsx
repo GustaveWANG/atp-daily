@@ -14,16 +14,6 @@ import { flagBackground } from "@/lib/flags";
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
-// Initiales à partir d'un nom complet (ex. "Carlos Alcaraz" → "CA")
-function initials(name: string): string {
-  return name
-    .split(" ")
-    .map((w) => w[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
-}
-
 // Parse le score "6-3, 7-5" en sets gagnant / perdant
 function parseSets(score: string): { winner: string[]; loser: string[] } {
   const sets = score.split(",").map((s) => s.trim());
@@ -67,7 +57,6 @@ const WAVE_HEIGHTS = Array.from({ length: 48 }, (_, i) =>
 // ── composant principal ───────────────────────────────────────────────────────
 interface HomeProps {
   matches: Match[];
-  initialRecaps: Record<string, string>;
   todayScript: string | null;
   todayAudioUrl: string | null;
   todayAudioDuration: number | null;
@@ -110,10 +99,7 @@ function shortRound(round: string): string {
   return map[round] ?? round.replace("Round of ", "R");
 }
 
-export default function Home({ matches, initialRecaps, todayScript, todayAudioUrl, todayAudioDuration, todayHeadline, recentEpisodes, displayDate }: HomeProps) {
-  const [recaps] = useState<Record<string, string>>(initialRecaps);
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
-
+export default function Home({ matches, todayScript, todayAudioUrl, todayAudioDuration, todayHeadline, recentEpisodes, displayDate }: HomeProps) {
   const [podcastScript] = useState(todayScript ?? "");
 
   // URL audio depuis Supabase, fallback sur SoundHelix tant que le cron n'a pas tourné
@@ -286,74 +272,53 @@ export default function Home({ matches, initialRecaps, todayScript, todayAudioUr
         <div className={styles.matchStrip} ref={stripRef}>
           {matches.map((match) => {
             const sets = parseSets(match.score);
-            const isExpanded = expanded[match.id];
             return (
-              <div key={match.id} className={styles.matchCard}>
-                {/* Score + joueurs — cliquable vers la page de détail */}
-                <Link href={`/matches/${match.id}`} className={styles.matchLink}>
-                  <div className={styles.matchMeta}>
-                    <span>{match.round.replace("Round of ", "R")}</span>
-                    <span>·</span>
-                    <span>{match.surface}</span>
-                    <span className={styles.matchStatus}>FINAL</span>
-                  </div>
+              <Link
+                key={match.id}
+                href={`/matches/${match.id}`}
+                className={styles.matchCard}
+              >
+                <div className={styles.matchMeta}>
+                  <span>{match.round.replace("Round of ", "R")}</span>
+                  <span>·</span>
+                  <span>{match.surface}</span>
+                  <span className={styles.matchStatus}>FINISHED</span>
+                </div>
 
-                  {/* ligne gagnant */}
-                  <div className={`${styles.matchRow} ${styles.winnerRow}`}>
-                    <span className={styles.avatar}>{initials(match.winner.name)}</span>
-                    <span
-                      className={styles.flag}
-                      style={{ background: flagBackground(match.winner.country) }}
-                    />
-                    <span className={styles.matchName}>
-                      {match.winner.name.split(" ").slice(-1)[0]}
-                      {match.winner.seed && (
-                        <span className={styles.matchSeed}>[{match.winner.seed}]</span>
-                      )}
-                    </span>
-                    <span className={styles.matchScore}>
-                      {sets.winner.map((s, i) => <b key={i}>{s}</b>)}
-                    </span>
-                  </div>
+                {/* ligne gagnant */}
+                <div className={`${styles.matchRow} ${styles.winnerRow}`}>
+                  <span
+                    className={styles.flag}
+                    style={{ background: flagBackground(match.winner.country) }}
+                  />
+                  <span className={styles.matchName}>
+                    {match.winner.name.split(" ").slice(-1)[0]}
+                    {match.winner.seed && (
+                      <span className={styles.matchSeed}>[{match.winner.seed}]</span>
+                    )}
+                  </span>
+                  <span className={styles.matchScore}>
+                    {sets.winner.map((s, i) => <b key={i}>{s}</b>)}
+                  </span>
+                </div>
 
-                  {/* ligne perdant */}
-                  <div className={styles.matchRow}>
-                    <span className={styles.avatar}>{initials(match.loser.name)}</span>
-                    <span
-                      className={styles.flag}
-                      style={{ background: flagBackground(match.loser.country) }}
-                    />
-                    <span className={styles.matchName}>
-                      {match.loser.name.split(" ").slice(-1)[0]}
-                      {match.loser.seed && (
-                        <span className={styles.matchSeed}>[{match.loser.seed}]</span>
-                      )}
-                    </span>
-                    <span className={styles.matchScore}>
-                      {sets.loser.map((s, i) => <b key={i}>{s}</b>)}
-                    </span>
-                  </div>
-                </Link>
-
-                {recaps[match.id] ? (
-                  <button
-                    className={styles.recapBtn}
-                    onClick={() => setExpanded((p) => ({ ...p, [match.id]: !isExpanded }))}
-                  >
-                    {isExpanded ? "▲ Hide recap" : "▼ Show recap"}
-                  </button>
-                ) : (
-                  <span className={styles.recapComingSoon}>Recap coming soon</span>
-                )}
-
-                {isExpanded && recaps[match.id] && (
-                  <div className={styles.recapBox}>
-                    {recaps[match.id].split("\n\n").map((para, i) => (
-                      <p key={i}>{para}</p>
-                    ))}
-                  </div>
-                )}
-              </div>
+                {/* ligne perdant */}
+                <div className={styles.matchRow}>
+                  <span
+                    className={styles.flag}
+                    style={{ background: flagBackground(match.loser.country) }}
+                  />
+                  <span className={styles.matchName}>
+                    {match.loser.name.split(" ").slice(-1)[0]}
+                    {match.loser.seed && (
+                      <span className={styles.matchSeed}>[{match.loser.seed}]</span>
+                    )}
+                  </span>
+                  <span className={styles.matchScore}>
+                    {sets.loser.map((s, i) => <b key={i}>{s}</b>)}
+                  </span>
+                </div>
+              </Link>
             );
           })}
         </div>
@@ -609,17 +574,9 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
         ? dbMatches.map(dbMatchToMatch)
         : mockMatches;
 
-    const initialRecaps: Record<string, string> = {};
-    if (dbMatches) {
-      for (const m of dbMatches) {
-        if (m.recap) initialRecaps[m.id] = m.recap;
-      }
-    }
-
     return {
       props: {
         matches: loadedMatches,
-        initialRecaps,
         todayScript: dbEpisode?.script ?? null,
         todayAudioUrl: dbEpisode?.audio_url ?? null,
         todayAudioDuration: dbEpisode?.audio_duration ?? null,
@@ -633,7 +590,6 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
     return {
       props: {
         matches: mockMatches,
-        initialRecaps: {},
         todayScript: null,
         todayAudioUrl: null,
         todayAudioDuration: null,

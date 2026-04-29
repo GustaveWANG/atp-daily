@@ -353,7 +353,7 @@
 
 .matchRow {
   display: grid;
-  grid-template-columns: 24px 18px 1fr auto;
+  grid-template-columns: 18px 1fr auto;
   gap: 8px;
   align-items: center;
   padding: 7px 0;

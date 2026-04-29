@@ -35,89 +35,180 @@ interface PodcastPlayerProps {
   onStateChange?: (state: PlayerState) => void;
 }
 
+// Trouve la position de tous les tags ID3v2 dans un buffer MP3. Chaque
+// MP3 ElevenLabs commence par un ID3 ; quand le cron concatène plusieurs
+// segments (un par locuteur), on se retrouve avec plusieurs ID3 successifs
+// dans le même fichier. Safari (Web Audio API + <audio>) s'arrête à la
+// première section, d'où une durée perçue de ~11 s.
+function findId3Positions(view: Uint8Array): number[] {
+  const positions: number[] = [];
+  // Borne sûre : on a besoin de lire 4 octets (ID3 + version)
+  for (let i = 0; i < view.length - 4; i++) {
+    if (
+      view[i] === 0x49 &&
+      view[i + 1] === 0x44 &&
+      view[i + 2] === 0x33 &&
+      // Version ID3v2 : 2.0 / 3.0 / 4.0 — filtre les faux positifs
+      view[i + 3] >= 0x02 &&
+      view[i + 3] <= 0x04
+    ) {
+      positions.push(i);
+    }
+  }
+  return positions;
+}
+
+// Décode un MP3 potentiellement constitué de plusieurs segments concaténés.
+// Si un seul ID3 est trouvé → décodage direct. Sinon, chaque segment est
+// décodé séparément puis les AudioBuffers sont concaténés.
+async function decodeConcatenatedMp3(
+  ab: ArrayBuffer,
+  ctx: AudioContext
+): Promise<AudioBuffer> {
+  const view = new Uint8Array(ab);
+  const positions = findId3Positions(view);
+
+  // 0 ou 1 ID3 → fichier unique, on tente le décodage direct
+  if (positions.length <= 1) {
+    return ctx.decodeAudioData(ab.slice(0));
+  }
+
+  // Sinon, on découpe entre chaque ID3
+  const slices: ArrayBuffer[] = [];
+  for (let p = 0; p < positions.length; p++) {
+    const start = positions[p];
+    const end = p + 1 < positions.length ? positions[p + 1] : view.length;
+    slices.push(ab.slice(start, end));
+  }
+
+  const buffers: AudioBuffer[] = [];
+  for (const slice of slices) {
+    try {
+      const buf = await ctx.decodeAudioData(slice);
+      buffers.push(buf);
+    } catch (err) {
+      console.warn("[PodcastPlayer] segment decode failed:", err);
+    }
+  }
+
+  if (buffers.length === 0) {
+    // Dernier recours : décodage direct
+    return ctx.decodeAudioData(ab.slice(0));
+  }
+
+  // Concaténation des AudioBuffers en un seul, pour pouvoir seek partout
+  const sampleRate = buffers[0].sampleRate;
+  const numChannels = Math.max(...buffers.map((b) => b.numberOfChannels));
+  const totalLength = buffers.reduce((sum, b) => sum + b.length, 0);
+  const result = ctx.createBuffer(numChannels, totalLength, sampleRate);
+
+  let offset = 0;
+  for (const b of buffers) {
+    for (let ch = 0; ch < numChannels; ch++) {
+      const target = result.getChannelData(ch);
+      const source = b.getChannelData(Math.min(ch, b.numberOfChannels - 1));
+      target.set(source, offset);
+    }
+    offset += b.length;
+  }
+  return result;
+}
+
+// On utilise Web Audio API (et pas <audio>) parce que les MP3 ElevenLabs
+// concaténés n'ont pas de header Xing/LAME : iOS Safari y voit alors une
+// durée bogus (~11 s) et clampe `audio.currentTime` à cette valeur, ce qui
+// rend tout seek réel impossible. En décodant le buffer complet et en
+// jouant avec un AudioBufferSourceNode, on contourne entièrement ce bug.
 const PodcastPlayer = forwardRef<PlayerHandle, PodcastPlayerProps>(
   function PodcastPlayer({ src, chapterTitles = [], fallbackDuration, onStateChange }, ref) {
-    const audioRef = useRef<HTMLAudioElement>(null);
+    const ctxRef = useRef<AudioContext | null>(null);
+    const bufferRef = useRef<AudioBuffer | null>(null);
+    const sourceRef = useRef<AudioBufferSourceNode | null>(null);
+    // Ancre : { ctxTime: ctx.currentTime au démarrage du source courant,
+    //           offset: position dans le buffer à ce moment-là }
+    const anchorRef = useRef<{ ctxTime: number; offset: number } | null>(null);
+    // Position sauvée à la pause / au seek hors lecture
+    const pausedAtRef = useRef(0);
+    // Sentinelle pour distinguer une fin naturelle d'un stop manuel
+    const stopReasonRef = useRef<"manual" | "natural">("manual");
+
+    const [decodedDuration, setDecodedDuration] = useState(0);
     const [playing, setPlaying] = useState(false);
     const [currentTime, setCurrentTime] = useState(0);
-    const [audioDuration, setAudioDuration] = useState(0);
     const [speed, setSpeed] = useState(1);
-    const [resolvedSrc, setResolvedSrc] = useState<string | null>(null);
 
-    // Ancre utilisée pour calculer la position courante via horloge mur :
-    // { wall: timestamp performance.now() au début/seek, audio: position dans
-    // la piste à ce moment-là }. iOS Safari arrête d'émettre `timeupdate`
-    // après ~11s sur certains MP3 ElevenLabs (header Xing manquant) ; on
-    // bypass le problème en suivant nous-mêmes le temps écoulé.
-    const anchorRef = useRef<{ wall: number; audio: number } | null>(null);
-
-    // Téléchargement préalable en blob → Object URL.
-    // iOS Safari ne sait pas lire la durée d'un MP3 ElevenLabs streamé tant
-    // que tout le fichier n'est pas connu, ce qui bloque la lecture à ~11s.
-    // En fetchant la totalité avant lecture, on donne un fichier complet à
-    // l'élément audio, qui peut alors seeker n'importe où.
-    useEffect(() => {
-      if (!src) return;
-      let blobUrl: string | null = null;
-      let cancelled = false;
-
-      fetch(src)
-        .then((r) => {
-          if (!r.ok) throw new Error(`HTTP ${r.status}`);
-          return r.blob();
-        })
-        .then((blob) => {
-          if (cancelled) return;
-          blobUrl = URL.createObjectURL(blob);
-          setResolvedSrc(blobUrl);
-        })
-        .catch(() => {
-          // Si le fetch échoue (CORS, réseau), on retombe sur l'URL directe
-          if (!cancelled) setResolvedSrc(src);
-        });
-
-      return () => {
-        cancelled = true;
-        if (blobUrl) URL.revokeObjectURL(blobUrl);
-      };
-    }, [src]);
-
-    // Durée effective : on privilégie celle de l'élément audio si elle paraît
-    // crédible (≥ fallback − 2s pour absorber les petites imprécisions), sinon
-    // on retombe sur la valeur DB.
+    // On préfère la durée décodée (exacte), sinon le fallback DB
     const fb = fallbackDuration ?? 0;
-    const duration = audioDuration > 0 && audioDuration >= fb - 2 ? audioDuration : fb;
+    const duration = decodedDuration > 0 ? decodedDuration : fb;
 
-    // Notifie le parent à chaque changement d'état de lecture
+    // Notifie le parent à chaque changement d'état
     useEffect(() => {
       onStateChange?.({ playing, currentTime, duration });
     }, [playing, currentTime, duration]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    // Applique la vitesse de lecture à l'élément audio. Réancre aussi le
-    // suivi mur pour ne pas fausser le calcul après changement de speed.
+    // Initialise l'AudioContext + télécharge & décode le MP3
     useEffect(() => {
-      if (audioRef.current) audioRef.current.playbackRate = speed;
-      if (anchorRef.current) {
-        anchorRef.current = { wall: performance.now(), audio: currentTime };
-      }
-    }, [speed]); // eslint-disable-line react-hooks/exhaustive-deps
+      if (!src) return;
+      const Ctor =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext: typeof AudioContext })
+          .webkitAudioContext;
+      const ctx = new Ctor();
+      ctxRef.current = ctx;
 
-    // Boucle d'animation : pendant la lecture, on calcule la position
-    // courante depuis l'ancre + horloge mur × vitesse. Indépendant du
-    // bug iOS sur `timeupdate`.
+      let cancelled = false;
+      fetch(src)
+        .then((r) => {
+          if (!r.ok) throw new Error(`HTTP ${r.status}`);
+          return r.arrayBuffer();
+        })
+        .then((ab) => decodeConcatenatedMp3(ab, ctx))
+        .then((buf) => {
+          if (cancelled) return;
+          bufferRef.current = buf;
+          setDecodedDuration(buf.duration);
+        })
+        .catch((err) => {
+          // En cas d'échec, l'UI continue sur fallbackDuration mais le seek
+          // ne marchera pas — on log pour faciliter le debug.
+          console.error("[PodcastPlayer] decodeAudioData failed:", err);
+        });
+
+      return () => {
+        cancelled = true;
+        const s = sourceRef.current;
+        if (s) {
+          stopReasonRef.current = "manual";
+          try {
+            s.stop();
+          } catch {
+            /* déjà stoppé */
+          }
+          s.disconnect();
+        }
+        sourceRef.current = null;
+        anchorRef.current = null;
+        ctx.close().catch(() => {});
+        ctxRef.current = null;
+        bufferRef.current = null;
+      };
+    }, [src]);
+
+    // Boucle d'animation : tant qu'on joue, on calcule la position via
+    // ctx.currentTime - ancre, multiplié par la vitesse de lecture.
     useEffect(() => {
       if (!playing) return;
       let raf = 0;
       const tick = () => {
+        const ctx = ctxRef.current;
+        const buf = bufferRef.current;
         const a = anchorRef.current;
-        if (a) {
-          const elapsed = ((performance.now() - a.wall) / 1000) * speed;
-          const t = a.audio + elapsed;
-          if (duration > 0 && t >= duration) {
-            // On a atteint la fin selon notre suivi : on coupe la lecture
-            audioRef.current?.pause();
-            setCurrentTime(duration);
-            return;
+        if (ctx && buf && a) {
+          const elapsed = (ctx.currentTime - a.ctxTime) * speed;
+          const t = a.offset + elapsed;
+          if (t >= buf.duration) {
+            setCurrentTime(buf.duration);
+            return; // la fin sera gérée par node.onended
           }
           setCurrentTime(t);
         }
@@ -125,71 +216,175 @@ const PodcastPlayer = forwardRef<PlayerHandle, PodcastPlayerProps>(
       };
       raf = requestAnimationFrame(tick);
       return () => cancelAnimationFrame(raf);
-    }, [playing, speed, duration]);
+    }, [playing, speed]);
 
-    // Pose une nouvelle ancre (utilisé après play, seek, skip…)
-    function setAnchor(audioSec: number) {
-      anchorRef.current = { wall: performance.now(), audio: audioSec };
+    // Démarre un nouveau source au offset donné. Stoppe l'ancien sans
+    // déclencher la logique de fin naturelle.
+    function startSourceAt(offset: number) {
+      const ctx = ctxRef.current;
+      const buf = bufferRef.current;
+      if (!ctx || !buf) return;
+
+      const old = sourceRef.current;
+      if (old) {
+        stopReasonRef.current = "manual";
+        try {
+          old.stop();
+        } catch {
+          /* ok */
+        }
+        old.disconnect();
+      }
+
+      const node = ctx.createBufferSource();
+      node.buffer = buf;
+      node.playbackRate.value = speed;
+      node.connect(ctx.destination);
+      node.onended = () => {
+        // Filtre les onended provoqués par un stop() manuel (seek/pause)
+        if (stopReasonRef.current === "manual") {
+          stopReasonRef.current = "manual";
+          return;
+        }
+        if (sourceRef.current !== node) return;
+        sourceRef.current = null;
+        anchorRef.current = null;
+        pausedAtRef.current = buf.duration;
+        setCurrentTime(buf.duration);
+        setPlaying(false);
+      };
+      stopReasonRef.current = "natural";
+      node.start(0, offset);
+      sourceRef.current = node;
+      anchorRef.current = { ctxTime: ctx.currentTime, offset };
     }
 
-    useImperativeHandle(ref, () => ({
-      togglePlayPause() {
-        const audio = audioRef.current;
-        if (!audio) return;
-        if (playing) audio.pause();
-        else void audio.play();
-      },
-      seekTo(time: number) {
-        const audio = audioRef.current;
-        if (!audio) return;
-        const t = Math.max(0, Math.min(time, duration || time));
-        audio.currentTime = t;
-        setCurrentTime(t);
-        if (playing) setAnchor(t);
-      },
-    }));
+    function play() {
+      const ctx = ctxRef.current;
+      const buf = bufferRef.current;
+      if (!ctx || !buf) return;
+      // iOS exige resume() depuis un geste utilisateur (le clic play()
+      // est bien un geste utilisateur, donc OK).
+      void ctx.resume();
+      const start =
+        pausedAtRef.current >= buf.duration - 0.05 ? 0 : pausedAtRef.current;
+      pausedAtRef.current = start;
+      setCurrentTime(start);
+      startSourceAt(start);
+      setPlaying(true);
+    }
+
+    function pause() {
+      const ctx = ctxRef.current;
+      const node = sourceRef.current;
+      const a = anchorRef.current;
+      if (!ctx || !node || !a) {
+        setPlaying(false);
+        return;
+      }
+      const elapsed = (ctx.currentTime - a.ctxTime) * speed;
+      const pos = Math.max(0, Math.min(a.offset + elapsed, decodedDuration));
+      pausedAtRef.current = pos;
+      stopReasonRef.current = "manual";
+      try {
+        node.stop();
+      } catch {
+        /* ok */
+      }
+      node.disconnect();
+      sourceRef.current = null;
+      anchorRef.current = null;
+      setCurrentTime(pos);
+      setPlaying(false);
+    }
 
     function togglePlayPause() {
-      const audio = audioRef.current;
-      if (!audio) return;
-      if (playing) audio.pause();
-      else void audio.play();
+      if (playing) pause();
+      else play();
+    }
+
+    // Seek borné à la durée décodée (ou fallback si pas encore décodé).
+    function safeSeek(targetTime: number) {
+      const buf = bufferRef.current;
+      const max = buf
+        ? buf.duration - 0.05
+        : duration > 0
+          ? duration
+          : Number.POSITIVE_INFINITY;
+      const t = Math.max(0, Math.min(targetTime, max));
+      pausedAtRef.current = t;
+      setCurrentTime(t);
+      if (playing && buf) {
+        startSourceAt(t);
+      }
     }
 
     function skip(delta: number) {
-      const audio = audioRef.current;
-      if (!audio) return;
-      const t = Math.max(0, Math.min(currentTime + delta, duration || currentTime + delta));
-      audio.currentTime = t;
-      setCurrentTime(t);
-      if (playing) setAnchor(t);
+      safeSeek(currentTime + delta);
     }
 
     function cycleSpeed() {
-      setSpeed(SPEEDS[(SPEEDS.indexOf(speed) + 1) % SPEEDS.length]);
+      const next = SPEEDS[(SPEEDS.indexOf(speed) + 1) % SPEEDS.length];
+      const ctx = ctxRef.current;
+      const node = sourceRef.current;
+      const a = anchorRef.current;
+      // En lecture : on applique le nouveau playbackRate au source courant
+      // et on réancre, sans avoir à recréer un node.
+      if (playing && ctx && node && a) {
+        const elapsed = (ctx.currentTime - a.ctxTime) * speed;
+        const pos = a.offset + elapsed;
+        node.playbackRate.value = next;
+        anchorRef.current = { ctxTime: ctx.currentTime, offset: pos };
+      }
+      setSpeed(next);
     }
 
-    // Cherche la position correspondant au clic sur la waveform
-    function handleWaveClick(e: React.MouseEvent<HTMLDivElement>) {
+    // Calcule la position cible à partir d'un clientX et de l'élément cible
+    function timeFromClientX(el: HTMLElement, clientX: number): number {
+      const rect = el.getBoundingClientRect();
+      if (rect.width <= 0) return 0;
+      const frac = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+      return frac * duration;
+    }
+
+    // Pointer (souris + tactile) sur la waveform : tap simple OU drag continu.
+    function handleWavePointerDown(e: React.PointerEvent<HTMLDivElement>) {
       if (!duration) return;
-      const rect = e.currentTarget.getBoundingClientRect();
-      const frac = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-      const t = frac * duration;
-      const audio = audioRef.current;
-      if (audio) audio.currentTime = t;
-      setCurrentTime(t);
-      if (playing) setAnchor(t);
+      const el = e.currentTarget;
+      e.preventDefault();
+      try {
+        el.setPointerCapture(e.pointerId);
+      } catch {
+        /* certains navigateurs refusent la capture sur pointer mouse */
+      }
+      safeSeek(timeFromClientX(el, e.clientX));
+
+      const onMove = (ev: PointerEvent) => {
+        if (ev.pointerId !== e.pointerId) return;
+        safeSeek(timeFromClientX(el, ev.clientX));
+      };
+      const cleanup = (ev: PointerEvent) => {
+        if (ev.pointerId !== e.pointerId) return;
+        el.removeEventListener("pointermove", onMove);
+        el.removeEventListener("pointerup", cleanup);
+        el.removeEventListener("pointercancel", cleanup);
+      };
+      el.addEventListener("pointermove", onMove);
+      el.addEventListener("pointerup", cleanup);
+      el.addEventListener("pointercancel", cleanup);
     }
 
-    // Saute au début du chapitre sélectionné
     function seekToChapter(index: number) {
       if (!duration || !chapterTitles.length) return;
-      const t = (index / chapterTitles.length) * duration;
-      const audio = audioRef.current;
-      if (audio) audio.currentTime = t;
-      setCurrentTime(t);
-      if (playing) setAnchor(t);
+      safeSeek((index / chapterTitles.length) * duration);
     }
+
+    useImperativeHandle(ref, () => ({
+      togglePlayPause,
+      seekTo(time: number) {
+        safeSeek(time);
+      },
+    }));
 
     // Chapitre actif basé sur la position actuelle dans la durée
     const activeCh =
@@ -204,48 +399,10 @@ const PodcastPlayer = forwardRef<PlayerHandle, PodcastPlayerProps>(
 
     return (
       <div className={styles.player}>
-        {/* Élément audio caché — alimenté par un Object URL (blob téléchargé
-            en amont) pour que la lecture aille jusqu'au bout sur iOS. La
-            position affichée est calculée par horloge mur (anchorRef + RAF),
-            indépendamment des `timeupdate` qui peuvent cesser après 11s. */}
-        <audio
-          ref={audioRef}
-          src={resolvedSrc ?? undefined}
-          preload="auto"
-          onPlay={() => {
-            setAnchor(audioRef.current?.currentTime ?? currentTime);
-            setPlaying(true);
-          }}
-          onPause={() => {
-            // Fige la position en figeant l'ancre
-            anchorRef.current = null;
-            setPlaying(false);
-          }}
-          onEnded={() => {
-            anchorRef.current = null;
-            setPlaying(false);
-            setCurrentTime(duration);
-          }}
-          onLoadedMetadata={(e) => {
-            const d = e.currentTarget.duration;
-            if (isFinite(d) && d > 0) setAudioDuration(d);
-          }}
-          onDurationChange={(e) => {
-            const d = e.currentTarget.duration;
-            if (isFinite(d) && d > 0) setAudioDuration(d);
-          }}
-          onSeeked={(e) => {
-            // Synchronise le suivi sur la vraie position après seek natif
-            const t = e.currentTarget.currentTime;
-            setCurrentTime(t);
-            if (playing) setAnchor(t);
-          }}
-        />
-
-        {/* Waveform cliquable — sert de barre de progression */}
+        {/* Waveform cliquable + draggable — sert de barre de progression. */}
         <div
           className={styles.wave}
-          onClick={handleWaveClick}
+          onPointerDown={handleWavePointerDown}
           role="slider"
           aria-label="Seek audio"
           aria-valuenow={Math.round(currentTime)}
