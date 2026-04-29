@@ -15,10 +15,14 @@ const FLAGS: Record<string, string> = {
   POR: "linear-gradient(to right, #006837 0 40%, #d91023 40%)",
 
   // ── Tricolores horizontales ────────────────────────────────────────────────
-  ESP: "linear-gradient(to bottom, #aa1a1a 0 25%, #f1c20a 25% 75%, #aa1a1a 75%)",
+  // Espagne : rouge/jaune/rouge ratio 1:2:1, avec une ellipse foncée à 1/3 de la
+  // gauche pour suggérer les armoiries.
+  ESP: "radial-gradient(ellipse 10% 16% at 33% 50%, #7a1014 0 100%, transparent 100%), linear-gradient(to bottom, #c60b1e 0 25%, #ffc400 25% 75%, #c60b1e 75%)",
   GER: "linear-gradient(to bottom, #1a1814 0 33%, #d12a2a 33% 66%, #f0c419 66%)",
   AUT: "linear-gradient(to bottom, #ed2939 0 33%, #ffffff 33% 66%, #ed2939 66%)",
-  ARG: "linear-gradient(to bottom, #74acdf 0 33%, #ffffff 33% 66%, #74acdf 66%)",
+  // Argentine : céleste/blanc/céleste avec un disque jaune (Soleil de Mai)
+  // au centre du bandeau blanc.
+  ARG: "radial-gradient(circle at 50% 50%, #f6b40e 0 14%, transparent 14%), linear-gradient(to bottom, #75aadb 0 33%, #ffffff 33% 66%, #75aadb 66%)",
   HUN: "linear-gradient(to bottom, #ce2939 0 33%, #ffffff 33% 66%, #436f4d 66%)",
   BUL: "linear-gradient(to bottom, #ffffff 0 33%, #00966e 33% 66%, #d62612 66%)",
   NED: "linear-gradient(to bottom, #ae1c28 0 33%, #ffffff 33% 66%, #21468b 66%)",
@@ -60,8 +64,12 @@ const FLAGS: Record<string, string> = {
   // ── Croix carrée (Suisse) ──────────────────────────────────────────────────
   SUI: "linear-gradient(0deg, transparent 35%, #ffffff 35% 65%, transparent 65%), linear-gradient(90deg, transparent 35%, #ffffff 35% 65%, transparent 65%), #ff0000",
 
-  // ── Croix de Saint-Georges et Royaume-Uni (simplifié) ──────────────────────
-  GBR: "linear-gradient(0deg, transparent 40%, #cf142b 40% 60%, transparent 60%), linear-gradient(90deg, transparent 40%, #cf142b 40% 60%, transparent 60%), #00247d",
+  // ── Royaume-Uni (Union Jack) ───────────────────────────────────────────────
+  // Empilement : croix rouge de Saint-Georges (la + au-dessus), croix blanche,
+  // diagonales rouges de Saint-Patrick, diagonales blanches de Saint-André,
+  // fond bleu marine. Les diagonales sont faussées par le ratio 16×12 mais
+  // l'image générale reste lisible à petite taille.
+  GBR: "linear-gradient(0deg, transparent 42%, #cf142b 42% 58%, transparent 58%), linear-gradient(90deg, transparent 42%, #cf142b 42% 58%, transparent 58%), linear-gradient(0deg, transparent 34%, #ffffff 34% 66%, transparent 66%), linear-gradient(90deg, transparent 34%, #ffffff 34% 66%, transparent 66%), linear-gradient(45deg, transparent 45%, #cf142b 45% 55%, transparent 55%), linear-gradient(-45deg, transparent 45%, #cf142b 45% 55%, transparent 55%), linear-gradient(45deg, transparent 38%, #ffffff 38% 62%, transparent 62%), linear-gradient(-45deg, transparent 38%, #ffffff 38% 62%, transparent 62%), #00247d",
 
   // ── Disque (Japon) ─────────────────────────────────────────────────────────
   JPN: "radial-gradient(circle at 50% 50%, #bc002d 0 28%, #ffffff 28%)",
