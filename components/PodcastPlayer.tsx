@@ -35,6 +35,48 @@ interface PodcastPlayerProps {
   onStateChange?: (state: PlayerState) => void;
 }
 
+type AudioSessionType =
+  | "auto"
+  | "playback"
+  | "transient"
+  | "transient-solo"
+  | "ambient"
+  | "play-and-record";
+
+type NavigatorWithAudioSession = Navigator & {
+  audioSession?: {
+    type: AudioSessionType;
+  };
+};
+
+// iOS traite parfois Web Audio comme un son "ambiant", donc coupé par le
+// bouton silencieux. Le type playback indique que c'est un média long
+// (musique/podcast) qui doit rester audible comme dans une app audio.
+function setPlaybackAudioSession(): AudioSessionType | null {
+  const audioSession = (navigator as NavigatorWithAudioSession).audioSession;
+  if (!audioSession) return null;
+
+  try {
+    const previousType = audioSession.type;
+    audioSession.type = "playback";
+    return previousType;
+  } catch (err) {
+    console.warn("[PodcastPlayer] audioSession playback failed:", err);
+    return null;
+  }
+}
+
+function restoreAudioSession(type: AudioSessionType | null) {
+  const audioSession = (navigator as NavigatorWithAudioSession).audioSession;
+  if (!audioSession || !type) return;
+
+  try {
+    audioSession.type = type;
+  } catch {
+    /* rien à restaurer sur les navigateurs partiellement compatibles */
+  }
+}
+
 // Trouve la position de tous les tags ID3v2 dans un buffer MP3. Chaque
 // MP3 ElevenLabs commence par un ID3 ; quand le cron concatène plusieurs
 // segments (un par locuteur), on se retrouve avec plusieurs ID3 successifs
@@ -124,6 +166,7 @@ const PodcastPlayer = forwardRef<PlayerHandle, PodcastPlayerProps>(
     const ctxRef = useRef<AudioContext | null>(null);
     const bufferRef = useRef<AudioBuffer | null>(null);
     const sourceRef = useRef<AudioBufferSourceNode | null>(null);
+    const audioSessionTypeRef = useRef<AudioSessionType | null>(null);
     // Ancre : { ctxTime: ctx.currentTime au démarrage du source courant,
     //           offset: position dans le buffer à ce moment-là }
     const anchorRef = useRef<{ ctxTime: number; offset: number } | null>(null);
@@ -149,6 +192,7 @@ const PodcastPlayer = forwardRef<PlayerHandle, PodcastPlayerProps>(
     // Initialise l'AudioContext + télécharge & décode le MP3
     useEffect(() => {
       if (!src) return;
+      audioSessionTypeRef.current = setPlaybackAudioSession();
       const Ctor =
         window.AudioContext ||
         (window as unknown as { webkitAudioContext: typeof AudioContext })
@@ -191,6 +235,8 @@ const PodcastPlayer = forwardRef<PlayerHandle, PodcastPlayerProps>(
         ctx.close().catch(() => {});
         ctxRef.current = null;
         bufferRef.current = null;
+        restoreAudioSession(audioSessionTypeRef.current);
+        audioSessionTypeRef.current = null;
       };
     }, [src]);
 
@@ -265,6 +311,11 @@ const PodcastPlayer = forwardRef<PlayerHandle, PodcastPlayerProps>(
       if (!ctx || !buf) return;
       // iOS exige resume() depuis un geste utilisateur (le clic play()
       // est bien un geste utilisateur, donc OK).
+      if (audioSessionTypeRef.current === null) {
+        audioSessionTypeRef.current = setPlaybackAudioSession();
+      } else {
+        setPlaybackAudioSession();
+      }
       void ctx.resume();
       const start =
         pausedAtRef.current >= buf.duration - 0.05 ? 0 : pausedAtRef.current;
