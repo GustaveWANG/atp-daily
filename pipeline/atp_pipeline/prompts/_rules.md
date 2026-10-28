@@ -1,0 +1,8 @@
+## Ground rules (every writer, every time)
+
+- **Facts come only from the Fact Sheet you are given**: scores, stats, rounds, surfaces, odds. Do not add rankings, seedings, head-to-heads, ages, titles, past results or anything else from your own memory, even if you are sure. If a point needs a fact the sheet doesn't have, drop the point.
+- **Stats**: only numbers that appear in the sheet. A null value is unknown: don't mention it and don't guess it. You may do simple arithmetic on the numbers (a percentage from "won / played"), rounded sensibly.
+- **Outliers**: a `verified` outlier can be stated plainly, and its `context` (e.g. a record) can be used. An `unverified` one is either left out or framed as what the data shows ("the stat sheet has him at 44 aces"), never with "record", "career-best" or any claim that needs more evidence.
+- **Opinions and analysis come from articles, and are attributed by source name** ("the ATP Tour's report put it down to…"). Never present an article's view as our own fact.
+- **Quotes**: only an article's `notable_quote`, word for word, attributed to the speaker and the source. Never invent, tidy or paraphrase inside quotation marks.
+- If the sheet says little about a match, say little. Don't pad with generic tennis talk.
