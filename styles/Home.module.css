@@ -919,3 +919,12 @@
     font-size: 9px;
   }
 }
+
+/* ── État vide (aucune donnée en base) ───────────────────────────────────────── */
+.emptyState {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--ink-2);
+  margin: 0;
+  padding: 16px 0;
+}

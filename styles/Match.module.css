@@ -401,28 +401,6 @@
   margin-bottom: 0;
 }
 
-.generateBtn {
-  padding: 10px 20px;
-  background: var(--ink);
-  color: var(--paper);
-  border: none;
-  border-radius: 8px;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 12px;
-  letter-spacing: 0.04em;
-  cursor: pointer;
-  transition: opacity 0.15s;
-}
-
-.generateBtn:hover:not(:disabled) {
-  opacity: 0.82;
-}
-
-.generateBtn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
 .toggleBtn {
   padding: 5px 12px;
   background: transparent;
@@ -456,11 +434,11 @@
   margin-bottom: 0;
 }
 
-.errorMsg {
+.recapEmpty {
   font-family: 'JetBrains Mono', monospace;
   font-size: 11px;
-  color: var(--live);
-  margin: 12px 0 0;
+  color: var(--ink-2);
+  margin: 0;
 }
 
 /* ── Footer ──────────────────────────────────────────────────────────────────── */

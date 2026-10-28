@@ -2,7 +2,7 @@ import Head from "next/head";
 import Link from "next/link";
 import { useState } from "react";
 import type { GetServerSideProps } from "next";
-import { matches as mockMatches, type Match, type Surface, type MatchStats } from "@/lib/mockData";
+import type { Match, Surface, MatchStats } from "@/lib/types";
 import type { DbMatch } from "@/lib/supabase";
 import { flagBackground } from "@/lib/flags";
 import styles from "@/styles/Match.module.css";
@@ -39,9 +39,7 @@ interface Props {
 }
 
 export default function MatchDetail({ match, initialRecap }: Props) {
-  const [recap, setRecap] = useState(initialRecap);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const recap = initialRecap;
   const [expanded, setExpanded] = useState(Boolean(initialRecap));
 
   const sets = parseSets(match.score);
@@ -52,27 +50,6 @@ export default function MatchDetail({ match, initialRecap }: Props) {
     month: "long",
     year: "numeric",
   });
-
-  async function generateRecap() {
-    setLoading(true);
-    setError("");
-    try {
-      const res = await fetch("/api/recap", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(match),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = (await res.json()) as { recap?: string; error?: string };
-      if (data.error) throw new Error(data.error);
-      setRecap(data.recap ?? "");
-      setExpanded(true);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Unknown error");
-    } finally {
-      setLoading(false);
-    }
-  }
 
   return (
     <>
@@ -265,7 +242,7 @@ export default function MatchDetail({ match, initialRecap }: Props) {
           </div>
         </section>
 
-        {/* ── Récapitulatif IA — collapsible, appel à /api/recap ── */}
+        {/* ── Récapitulatif IA — collapsible, pré-généré en base ── */}
         <section className={styles.recapSection}>
           <div className={styles.recapHeader}>
             <h2 className={styles.sectionTitle}>Match Recap</h2>
@@ -279,17 +256,7 @@ export default function MatchDetail({ match, initialRecap }: Props) {
             )}
           </div>
 
-          {!recap && (
-            <button
-              className={styles.generateBtn}
-              onClick={generateRecap}
-              disabled={loading}
-            >
-              {loading ? "Generating recap…" : "Generate AI Recap"}
-            </button>
-          )}
-
-          {error && <p className={styles.errorMsg}>{error}</p>}
+          {!recap && <p className={styles.recapEmpty}>No recap for this match yet.</p>}
 
           {expanded && recap && (
             <div className={styles.recapBody}>
@@ -355,7 +322,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async ({ params }) 
   const id = Array.isArray(params?.id) ? params.id[0] : params?.id;
   if (!id) return { notFound: true };
 
-  // Tentative de chargement depuis Supabase ; fallback sur les mocks si indisponible
+  // Chargement depuis Supabase ; 404 si le match n'existe pas ou si la base est indisponible
   try {
     const { supabaseAdmin } = await import("@/lib/supabase-server");
     const { data } = await supabaseAdmin
@@ -373,11 +340,9 @@ export const getServerSideProps: GetServerSideProps<Props> = async ({ params }) 
         },
       };
     }
-  } catch {
-    // Supabase indisponible : on retombe sur les mocks ci-dessous
+  } catch (err) {
+    console.error("Match data load failed:", (err as Error).message);
   }
 
-  const mock = mockMatches.find((m) => m.id === id);
-  if (!mock) return { notFound: true };
-  return { props: { match: mock, initialRecap: "" } };
+  return { notFound: true };
 };
