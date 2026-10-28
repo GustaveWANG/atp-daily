@@ -26,8 +26,10 @@
           │          web_search · fetch_article
           │   → 输出 JSON：matches[]（事实）+ articles[]（观点）
           ▼
-   ② VALIDATE ── 纯代码：schema + 规则校验（比分合法、胜者一致、日期在窗口内、
-          │   无重复）→ Fact Sheet（每条带 fact id）
+   ② VALIDATE ── 代码：schema + 硬规则（比分合法、胜者一致、统计自洽、日期在窗口内、
+          │   无重复）→ 不可能的数据拦下；罕见但合法的数据标为 outlier，不拦
+          │   • Research Agent 只针对 outlier 做一次定向搜索 → verified / unverified
+          │   → Fact Sheet（每条带 fact id 和核实状态）
           │   0 场比赛 → NO_SHOW（休赛日），正常结束
           ▼
    ③ PLAN ── Editor Agent：选 2–4 条故事线 → Episode Outline
@@ -73,6 +75,34 @@ Research 的输出分两部分，下游靠这个区分来做核对：
 - 比赛结果由代码直接调 API 拉取，agent 只负责"挑重点 + 找评论"。
 - 文章只存摘要要点和来源，不存全文；引语只保留文章里真实出现的、并附出处。
 - 缺失的数据标记为 `null`（unknown），不填 0。API 错误必须上报，不能吞掉。
+- **数据源：tennis-api.com**（RapidAPI，免费档 50 次/天）。2026-10-27 实测：
+  - `/atp/results/{date}` + `filter=PlayerGroup:singles;TourRank:2,3,4,5,7`，1 次请求拿到当天全部主巡回赛单打（排除 ITF 和 Challenger，保留戴维斯杯），带场地类型和赛前赔率。
+  - `/matches/{liveMatchId}/stats` 每场 1 次请求，有 ace、双误、一发、二发、破发点、总得分；制胜分、非受迫性失误、发球速度为 `null`。13 场的破发数据与比分全部自洽。
+  - 结果里的 `matchId` 约一天后会重新编号，存储一律用 `liveMatchId`（`player1Id-player2Id-tournamentId-roundId`）。球员 ID 是 tennis-api 自己的编号，非 ATP 官方 ID，存储时同时保存姓名。
+  - 时间为 UTC；`best_of` 为 `null`，需按赛事级别推断。
+- 统计只给 Research Agent 选中的比赛拉取，控制每日请求量；开发阶段把原始 JSON 缓存到本地，不重复请求。
+
+### ② VALIDATE：拦"不可能"，标"罕见"
+
+罕见不等于错误。2026 Basel R1 Shelton 打出 44 个 ace（并列 ATP 1991 年以来单场第三多），看起来像数据错误，实际上是当天最值得讲的故事。所以校验分两类，处理方式不同：
+
+| 类型 | 例子 | 处理 |
+|------|------|------|
+| **不可能**（数据自相矛盾） | ace 数 > 发球总分；一方转化破发 ≠ 对方面对破发点 − 挽救数；盘分不合法；胜者与比分不符；负数；日期不在窗口内 | 代码拦下，不进 Fact Sheet，记录并上报 |
+| **罕见**（合法但极端） | ace ≥ 30；双误 ≥ 12；丢掉 0-6 一盘后翻盘；连续三盘抢七；高赔率一方获胜 | 不拦，标记 `outlier`，进入核实 |
+
+```jsonc
+{ "id": "m4.p1.aces", "match_id": "m4", "fact": "Shelton aces = 44",
+  "flag": "outlier", "reason": "ace ≥ 30，接近 ATP 单场纪录",
+  "status": "verified" | "unverified",
+  "evidence": [{ "url": "https://www.atptour.com/...", "source": "ATP Tour" }] }
+```
+
+- **核实**：Research Agent 只针对 `outlier` 做一次定向搜索；找到可靠来源 → `verified` 并附链接，找不到 → `unverified`。不是 outlier 的普通事实不用核实。
+- **Editor**：outlier 是故事线信号，已核实的 outlier 优先考虑。
+- **Writer**：`verified` 可以作为重点，并可引用来源里的背景（如"并列有记录以来第三多"）；`unverified` 要么不讲，要么用保留说法（"数据显示……"），不能加"创纪录"这类需要额外证据的判断。
+- **Reviewer**：检查 `unverified` 的事实有没有被说成确定的结论。
+- 阈值先凭经验设定，放在配置里，之后用积累的历史数据校准。
 
 ### ④⑤ WRITE ⇄ REVIEW：反馈格式
 
@@ -111,7 +141,7 @@ ALEX / SAM 已经是对话形式。外部视角由 ① 抓回来的评论文章�
 |------|------|------|------|----------|
 | Orchestrator | 代码 | run_id | 推进状态机 | 每步幂等；记录 tokens、费用、耗时 |
 | Research Agent | Agent + tools | 日期窗口 | matches + articles | 动态发现进行中的赛事；事实只来自 API |
-| Validator | 代码 | Research 输出 | Fact Sheet | 只有通过规则的事实才能进入 |
+| Validator | 代码 + Research Agent（核实） | Research 输出 | Fact Sheet | 不可能的数据拦下；罕见的标 outlier 并核实，不拦 |
 | Editor | Agent | Fact Sheet | Outline | 只做选择和排序，不写正文 |
 | Writers | Agent | Outline + 相关 facts | recap / 脚本 / metadata | 禁止虚构引语；没有数据就不谈数据 |
 | Reviewer | Agent | 正文 + Fact Sheet | 结构化反馈 | 独立 prompt、独立上下文 |
@@ -153,7 +183,7 @@ Vercel 函数最长 300s，整条链路（多次 LLM 调用 + 评审循环 + TTS
 
 ## 待确认
 
-1. **数据源。** ATP 数据 API 是否提供"按日期列出进行中赛事"和技术统计；不提供就需要换源。这是第一个技术风险。
+1. ~~**数据源。**~~ 已确认（2026-10-27 实测）：tennis-api.com 能按日期查全部主巡回赛赛果，也提供已完赛比赛的技术统计，不需要换源。细节见 ① DISCOVER。尚待验证：大师赛 / 大满贯（TourRank 3、4）和戴维斯杯（5）当天的返回格式。
 2. **搜索工具。** Anthropic 自带的 web search 工具，还是 Tavily / Brave 等第三方。
 3. **人工审核渠道。** `NEEDS_REVIEW` 通过邮件 / Slack / 简单的审核页面通知。
 4. **节目范围。** 只做 ATP 单打，还是覆盖同一周的多个赛事。
