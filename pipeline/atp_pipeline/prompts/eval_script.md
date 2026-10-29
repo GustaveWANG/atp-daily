@@ -24,6 +24,8 @@ For `analysis` and `take` lines, also set `grounded`:
 - `false` if it relies on a fact the sheet doesn't have or contradicts (a wrong number, a misread stat, a made-up ranking), or if the conclusion clearly doesn't follow (e.g. calling a gap decisive when the two numbers are almost the same).
 For other kinds, set `grounded` to null.
 
+For every line, also set `tennis`: `true` if the line talks about the tennis itself, how a player plays or how the match was played: technique and strokes, serve patterns, return position, tactics, equipment, how two styles met. Scores, stats, records, rankings and off-court news alone are `false`, and so is a stat dressed up with a tennis word ("his serve was huge: forty-four aces"). The line needs an idea about how the tennis works.
+
 ## 2. Grade every segment
 
 For each outline segment (by its 0-based index), using only the lines tagged with it:

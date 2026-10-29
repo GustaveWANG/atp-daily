@@ -24,9 +24,9 @@ STEPS = ["discover", "validate", "plan", "write", "review", "produce"]
 
 
 class Run:
-    def __init__(self, day: str):
+    def __init__(self, day: str, name: str | None = None):
         self.day = day
-        self.dir = config.RUNS_DIR / day
+        self.dir = config.RUNS_DIR / (name or day)
 
     def load(self, step: str, model: type[BaseModel]):
         f = self.dir / f"{step}.json"
@@ -155,7 +155,7 @@ def main() -> int:
     parser.add_argument("--run", help="run folder under data/runs/ (default: the date), to keep experiments apart")
     args = parser.parse_args()
 
-    run = Run(args.run or args.date)
+    run = Run(args.date, args.run)
     for step in sorted(set(args.steps), key=STEPS.index):
         globals()[f"run_{step}"](run)
     return 0

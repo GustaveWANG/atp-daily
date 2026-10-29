@@ -51,11 +51,14 @@ MAIN_TOUR_RANKS = (2, 3, 4, 5, 7)
 
 # Caps on the research agent's tool use per run.
 MAX_STATS_CALLS = 10
-MAX_WEB_SEARCHES = 14
-MAX_WEB_FETCHES = 16
+MAX_WEB_SEARCHES = 20
+MAX_WEB_FETCHES = 22
 MAX_AGENT_TURNS = 30
 # How far back a "background" search (player news, form, history) looks.
 BACKGROUND_SEARCH_DAYS = 45
+# A "style" search (how a player plays: strokes, serve, equipment, tactics) can use
+# older scouting pieces, since a game changes slowly.
+STYLE_SEARCH_DAYS = 3 * 365
 
 # Tavily search settings. basic = 1 credit per search, advanced = 2.
 TAVILY_SEARCH_DEPTH = os.environ.get("TAVILY_SEARCH_DEPTH", "basic")
@@ -68,6 +71,15 @@ TAVILY_EXCLUDE_DOMAINS = [
     "covers.com",
     "sportsgambler.com",
     "bettingexpert.com",
+    # Social and video pages: can't be read as text or cited, and they crowd out
+    # real analysis, especially in "style" searches.
+    "facebook.com",
+    "instagram.com",
+    "youtube.com",
+    "tiktok.com",
+    "reddit.com",
+    "x.com",
+    "twitter.com",
 ]
 
 # Models for the later steps, same "provider:model" format as RESEARCH_MODEL.
@@ -106,6 +118,10 @@ DIALOGUE_MIN_SHORT_LINES = 4  # quick reactions of at most DIALOGUE_SHORT_LINE_W
 DIALOGUE_SHORT_LINE_WORDS = 8
 DIALOGUE_MAX_SAME_SPEAKER = 1  # times one host speaks twice in a row
 DIALOGUE_MAX_RELAY_SHARE = 0.2  # lines opening with "And", "Plus"... that just add the next fact
+# Number density: spoken numbers (scores, stats, counts) per 100 words, and "percent" mentions.
+# Earlier 2026-10-27 scripts ran at 9-12 per 100 words and felt like a stat sheet.
+NUMBERS_MAX_PER_100_WORDS = 6
+NUMBERS_MAX_PERCENT = 3
 
 # EVALS: the judge grading a step's output.
 EVAL_MODEL = os.environ.get("EVAL_MODEL", "anthropic:claude-sonnet-5-5")

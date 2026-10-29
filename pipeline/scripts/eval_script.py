@@ -23,7 +23,7 @@ class SavedEval(BaseModel):
 
 
 def fmt(metric: str, value: float) -> str:
-    return f"{value:g}" if metric == "ungrounded" else f"{value:.0%}"
+    return f"{value:g}" if metric in ("ungrounded", "numbers_per_100_words") else f"{value:.0%}"
 
 
 def main() -> int:

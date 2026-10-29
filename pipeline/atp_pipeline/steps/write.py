@@ -243,6 +243,18 @@ def check_format(script: list[ScriptLine], recaps: list[Recap], meta: EpisodeMet
 RELAY_OPENER = re.compile(r"^(and|plus|also|on top of that|what's more)\b", re.IGNORECASE)
 
 
+_NUMBER_WORD = (r"(?:zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|"
+                r"fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|"
+                r"ninety|hundred|thousand|love|\d+(?:\.\d+)?)")
+# One spoken number: "forty-four", "a hundred and twenty-one", "six-four", "one-point-one-nine".
+SPOKEN_NUMBER = re.compile(rf"\b{_NUMBER_WORD}(?:(?:[- ]|\s+and\s+|\s+a\s+|-point-){_NUMBER_WORD})*\b", re.IGNORECASE)
+
+
+def count_numbers(text: str) -> int:
+    # A lone "one" is usually a pronoun ("the ugly one"), not a stat.
+    return sum(m.group(0).lower() != "one" for m in SPOKEN_NUMBER.finditer(text))
+
+
 def dialogue_stats(script: list[ScriptLine]) -> dict:
     """Cheap signals of back-and-forth. Speaker-based ones skip each host's first line."""
     n = len(script)
@@ -253,6 +265,9 @@ def dialogue_stats(script: list[ScriptLine]) -> dict:
         "short_lines": sum(len(line.text.split()) <= config.DIALOGUE_SHORT_LINE_WORDS for line in script),
         "same_speaker": sum(a.speaker == b.speaker for a, b in turns),
         "relay_lines": sum(bool(RELAY_OPENER.match(b.text.strip())) for a, b in turns if a.speaker != b.speaker),
+        "numbers_per_100_words": round(
+            100 * sum(count_numbers(l.text) for l in script) / max(1, sum(len(l.text.split()) for l in script)), 1),
+        "percent_mentions": sum(len(re.findall(r"\bpercent\b", l.text, re.IGNORECASE)) for l in script),
         "sam_word_share": round(
             sum(len(l.text.split()) for l in script if l.speaker == "SAM")
             / max(1, sum(len(l.text.split()) for l in script)), 2),
@@ -274,6 +289,13 @@ def check_dialogue(script: list[ScriptLine]) -> list[ReviewIssue]:
     if s["relay_lines"] > config.DIALOGUE_MAX_RELAY_SHARE * s["lines"]:
         problems.append(f"{s['relay_lines']} of {s['lines']} lines open with \"And\"/\"Plus\"/\"Also\" and just add "
                         "the next fact; respond to what the other host said first")
+    if s["numbers_per_100_words"] > config.NUMBERS_MAX_PER_100_WORDS:
+        problems.append(f"{s['numbers_per_100_words']} spoken numbers per 100 words (max "
+                        f"{config.NUMBERS_MAX_PER_100_WORDS}); it sounds like a stat sheet. Keep the one stat that "
+                        "proves each point, say the rest in words, and spend the lines on how the match was played")
+    if s["percent_mentions"] > config.NUMBERS_MAX_PERCENT:
+        problems.append(f"{s['percent_mentions']} percentages (max {config.NUMBERS_MAX_PERCENT}); never give a count "
+                        "and its percentage, and prefer plain words (\"he barely lost a point on first serve\")")
     return [ReviewIssue(severity=config.DIALOGUE_SEVERITY, target="script", line=None,
                         issue=f"dialogue: {p}", suggestion="Rework the exchange so the hosts talk to each other.")
             for p in problems]

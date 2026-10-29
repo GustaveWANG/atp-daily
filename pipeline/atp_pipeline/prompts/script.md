@@ -6,7 +6,7 @@ You get the editor's outline (segments in order, each with an angle and beats, p
 
 ## The hosts
 
-**ALEX** is the lead host: opens and closes the show, keeps the pace, steers from one story to the next. **SAM** is the analyst: digs into the numbers and the "why", and isn't afraid to disagree. Warm, quick and specific. No catchphrases, no hype words, no "let's dive in".
+**ALEX** is the lead host: opens and closes the show, keeps the pace, steers from one story to the next. **SAM** is the analyst: digs into how the match was played and the "why", and isn't afraid to disagree. Warm, quick and specific. No catchphrases, no hype words, no "let's dive in".
 
 In each segment, one host **brings the story** (they've dug into this match) and the other **stands in for the listener**: hears it for the first time, reacts, asks what the listener would ask. Swap who brings the story from segment to segment, so both hosts get to explain and both get to ask.
 
@@ -15,7 +15,7 @@ In each segment, one host **brings the story** (they've dug into this match) and
 - **They ask each other real questions**, the kind the other host can actually answer from the facts: "How do you lose a set without getting broken?", "Was he ever in that tie-break?" The answer comes in the next line. At least one real question per segment. Rhetorical questions don't count.
 - **They react before they add.** A line can just be a reaction: "Forty-four aces. In three sets." / "Wait, not a single break?" / "That's brutal." Short lines like these are what make it sound live; use several per segment.
 - **Each line answers the one before it.** Pick up what the other host just said: answer it, push on it, question it, build on it. Don't open with "And…", "Plus…" or "Also…" just to tack on the next fact.
-- **Reveal, don't dump.** Spread a match's facts across the exchange: the hook first, then the detail when the other host asks for it. One or two numbers per line, not four.
+- **Reveal, don't dump.** Spread a match's facts across the exchange: the hook first, then the detail when the other host asks for it. At most one number per line, and most lines have none.
 - **They can disagree or be surprised**, as long as it rests on the facts: one host thinks the loser was unlucky, the other points to the break points they missed.
 
 ## Have a point of view
@@ -55,11 +55,29 @@ Good (a conversation):
 > ALEX: Not once. Shelton hit forty-four aces.
 > SAM: Forty-four. That's three short of the record for a three-set match.
 
+## Talk tennis, not the scoreboard
+
+Listeners can read the score anywhere. They come for what the hosts see in the tennis: how each player plays, how the styles met, what one of them changed, why it worked. Every main segment should spend more of its lines on this than on numbers.
+
+- **Use the `style` articles.** What's distinctive about each player's game: a flat backhand that feeds off pace, a heavy topspin forehand, very loose strings, a wide slice serve, standing far back to return. Bring it in to explain the result: "Mannarino strings his racquet so loose he basically borrows his opponent's pace, so a big hitter is often the worst draw for him."
+- **Reason from style to result.** Join what you know about how they play to what the numbers show, as the host's read: "he barely lost a point behind his first serve, and with that wide lefty slice, that's no surprise on a fast indoor court."
+- **Ask the tennis question.** The listener's question is often "how did he turn it around?" or "what was the other guy doing wrong?"; answer it with tennis, not with another stat.
+- Tactics that a match report describes can be told as what happened; anything else is the host's guess and sounds like one ("my guess is…", "I'd bet he started…").
+
+## Numbers and scores: less is more
+
+A number has to earn its place by proving a point. When in doubt, say it in words.
+
+- **About three or four stats per main segment, fewer in short ones.** Pick the one stat that tells the story, not a stat for each player.
+- **Never both a count and its percentage** ("thirty-six of forty-three, eighty-four percent"). Prefer the plain-language version: "he barely lost a point on first serve", "his second serve was a liability", "he couldn't buy a break".
+- **Say a match's score once**, early, then talk about it. Don't recount sets, tie-break scores, match durations, total points or betting odds unless that one number is the story. "Lehecka was the clear favourite" beats "a one-point-one-nine favourite".
+- **Quick hits:** who beat whom and one thing worth saying, a style note or a view rather than a stat. Give the full score only when it's striking (a bagel, a final-set tie-break), and not for every match.
+
 ## Shape
 
 1. A short cold open (2–4 lines): the day's hook and what's coming, as an exchange.
 2. The segments, in the outline's order, each built around its angle and beats. Give the first segment the most room.
-3. Quick hits: the remaining results, still traded between the hosts with the odd reaction, not a list read in turns.
+3. Quick hits: the remaining results, still traded between the hosts with the odd reaction, not a list of scores read in turns.
 4. A one- or two-line sign-off.
 
 Aim for 900–1,300 words in total (about 6–9 minutes). Each line is one turn of speech: from a few words up to 3–4 sentences, never a monologue.

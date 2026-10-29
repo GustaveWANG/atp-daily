@@ -37,7 +37,8 @@ WEB_SEARCH_TOOL = llm.Tool(
     name="web_search",
     description=(
         "Search the web. With window 'match', results are limited to pages published from the "
-        "day before the matches to two days after; with 'background', from several weeks before. "
+        "day before the matches to two days after; with 'background', from several weeks before; "
+        "with 'style', from the past few years. "
         "Returns title, url, published date and a short snippet for each result. Snippets are "
         "not enough to cite; open a page with web_fetch first."
     ),
@@ -47,8 +48,9 @@ WEB_SEARCH_TOOL = llm.Tool(
             "query": {"type": "string", "description": "Search query, e.g. player names and tournament."},
             "window": {
                 "type": "string",
-                "enum": ["match", "background"],
-                "description": "'match' for reports on yesterday's matches, 'background' for a player's news, form or history.",
+                "enum": ["match", "background", "style"],
+                "description": "'match' for reports on yesterday's matches, 'background' for a player's news, form or history, "
+                "'style' for how a player plays: strokes, serve, equipment, tactics, matchups.",
             },
         },
         "required": ["query", "window"],
@@ -100,7 +102,7 @@ SUBMIT_RESEARCH_TOOL = llm.Tool(
                             "type": ["string", "null"],
                             "description": "One quote copied exactly from the article, or null.",
                         },
-                        "kind": {"type": "string", "enum": ["match_report", "background"]},
+                        "kind": {"type": "string", "enum": ["match_report", "background", "style"]},
                     },
                     "required": ["url", "source", "title", "published_at", "match_ids", "key_points", "notable_quote", "kind"],
                     "additionalProperties": False,
@@ -128,7 +130,7 @@ class _RawArticle(BaseModel):
     match_ids: list[str]
     key_points: list[str]
     notable_quote: str | None = None
-    kind: Literal["match_report", "background"] = "match_report"
+    kind: Literal["match_report", "background", "style"] = "match_report"
 
 
 class _Submission(BaseModel):
@@ -196,6 +198,7 @@ class _ResearchAgent:
         self.search_windows = {
             "match": ((d - timedelta(days=1)).isoformat(), end),
             "background": ((d - timedelta(days=config.BACKGROUND_SEARCH_DAYS)).isoformat(), end),
+            "style": ((d - timedelta(days=config.STYLE_SEARCH_DAYS)).isoformat(), end),
         }
         self.seen_urls: set[str] = set()  # every URL returned by web_search
         self.fetched: dict[str, str] = {}  # url -> page text the model read
@@ -295,7 +298,7 @@ class _ResearchAgent:
 
     def _web_search(self, query: str, window: str) -> tuple[str, bool]:
         if window not in self.search_windows:
-            return f"Unknown window {window!r}; use 'match' or 'background'.", True
+            return f"Unknown window {window!r}; use 'match', 'background' or 'style'.", True
         if self.meta.web_searches >= config.MAX_WEB_SEARCHES:
             return "Search limit reached for this run.", True
         self.meta.web_searches += 1

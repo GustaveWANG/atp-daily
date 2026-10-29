@@ -67,7 +67,8 @@ class Article(BaseModel):
     key_points: list[str]
     notable_quote: str | None = None
     # match_report: about yesterday's matches. background: a player's news, form or history.
-    kind: Literal["match_report", "background"] = "match_report"
+    # style: how a player plays (strokes, serve, equipment, tactics).
+    kind: Literal["match_report", "background", "style"] = "match_report"
 
 
 class SourceMeta(BaseModel):

@@ -74,7 +74,10 @@ def strict_schema(model: type[BaseModel]) -> dict:
             return node
         if "$ref" in node:
             return fix(defs[node["$ref"].split("/")[-1]])
-        node = {k: fix(v) for k, v in node.items() if k not in ("title", "default")}
+        # Drop pydantic's "title"/"default" annotations, but not fields that happen
+        # to be named "title" (keys of "properties").
+        node = {k: ({p: fix(s) for p, s in v.items()} if k == "properties" else fix(v))
+                for k, v in node.items() if k not in ("title", "default")}
         if node.get("type") == "object" and "properties" in node:
             node["required"] = list(node["properties"])
             node["additionalProperties"] = False

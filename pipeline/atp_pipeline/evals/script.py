@@ -12,6 +12,9 @@ Scores:
 - segments_with_thesis, segments_with_pushback: share of outline segments.
 - ungrounded: number of analysis or take lines resting on facts the sheet
   doesn't support. A guard: more analysis is only better if this stays low.
+- tennis_share: content lines the judge marks as talking tennis (how a player
+  plays: technique, serve patterns, tactics, equipment, the matchup).
+- numbers_per_100_words: spoken numbers per 100 words, counted in code.
 
 The draft is graded twice when it can be: as WRITE produced it and after
 REVIEW's revisions, to see how much analysis the review loop removes.
@@ -24,16 +27,18 @@ from pydantic import BaseModel
 
 from .. import agent, config, factsheet
 from ..schemas import FactSheet, Outline, ScriptLine, StepUsage
-from ..steps.write import render_script
+from ..steps.write import dialogue_stats, render_script
 
 KINDS = ("fact", "attributed", "analysis", "take", "other")
-METRICS = ("analysis_share", "take_share", "segments_with_thesis", "segments_with_pushback", "ungrounded")
+METRICS = ("analysis_share", "take_share", "segments_with_thesis", "segments_with_pushback", "ungrounded",
+           "tennis_share", "numbers_per_100_words")
 
 
 class LineLabel(BaseModel):
     line: int  # 1-based, as in the numbered script
     kind: Literal["fact", "attributed", "analysis", "take", "other"]
     grounded: bool | None  # only for analysis and take
+    tennis: bool  # talks about how a player plays, not just results and stats
 
 
 class SegmentGrade(BaseModel):
@@ -127,6 +132,8 @@ def run(run_name: str, stage: str, script: list[ScriptLine], outline: Outline, s
         "segments_with_thesis": sum(s.thesis_line is not None for s in grades) / n_segs if n_segs else 0.0,
         "segments_with_pushback": sum(s.pushback_line is not None for s in grades) / n_segs if n_segs else 0.0,
         "ungrounded": float(sum(x.grounded is False for x in lines)),
+        "tennis_share": sum(x.tennis for x in content) / len(content) if content else 0.0,
+        "numbers_per_100_words": dialogue_stats(script)["numbers_per_100_words"],
     }
     return ScriptEval(run=run_name, stage=stage, judge=config.EVAL_MODEL, lines=lines, segments=grades,
                       scores=scores, usage=usage)
