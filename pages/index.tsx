@@ -2,7 +2,7 @@ import Head from "next/head";
 import Link from "next/link";
 import { useState, useRef, useEffect } from "react";
 import type { GetServerSideProps } from "next";
-import { matches as mockMatches, type Match, type Surface } from "@/lib/mockData";
+import type { Match, Surface } from "@/lib/types";
 import styles from "@/styles/Home.module.css";
 import PodcastPlayer, {
   type PlayerHandle,
@@ -51,7 +51,7 @@ function formatDuration(seconds: number | null): string {
 
 // Barres de waveform pour l'état pré-audio (avant chargement du lecteur complet)
 const WAVE_HEIGHTS = Array.from({ length: 48 }, (_, i) =>
-  Math.max(4, 6 + Math.abs(Math.sin(i * 0.5)) * 28)
+  Math.round(Math.max(4, 6 + Math.abs(Math.sin(i * 0.5)) * 28))
 );
 
 // ── composant principal ───────────────────────────────────────────────────────
@@ -61,12 +61,11 @@ interface HomeProps {
   todayAudioUrl: string | null;
   todayAudioDuration: number | null;
   todayHeadline: string | null;
+  todayRead: string | null;
+  todayBracketWatch: string | null;
   recentEpisodes: RecentEpisode[];
   displayDate: string; // "2026-04-26" — date du jour affiché (la plus récente avec des matchs)
 }
-
-// Audio de démo si aucun épisode n'a encore généré son MP3
-const FALLBACK_AUDIO = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3";
 
 // Format compact "SUN · APR 26"
 function formatStripDate(dateStr: string): string {
@@ -99,11 +98,11 @@ function shortRound(round: string): string {
   return map[round] ?? round.replace("Round of ", "R");
 }
 
-export default function Home({ matches, todayScript, todayAudioUrl, todayAudioDuration, todayHeadline, recentEpisodes, displayDate }: HomeProps) {
+export default function Home({ matches, todayScript, todayAudioUrl, todayAudioDuration, todayHeadline, todayRead, todayBracketWatch, recentEpisodes, displayDate }: HomeProps) {
   const [podcastScript] = useState(todayScript ?? "");
 
-  // URL audio depuis Supabase, fallback sur SoundHelix tant que le cron n'a pas tourné
-  const [audioUrl] = useState(todayAudioUrl ?? FALLBACK_AUDIO);
+  // URL audio depuis Supabase — null tant qu'aucun épisode n'a d'audio (état "Coming soon")
+  const [audioUrl] = useState(todayAudioUrl);
 
   // Refs et état pour le lecteur et le mini-player
   const playerRef = useRef<PlayerHandle>(null);
@@ -143,10 +142,19 @@ export default function Home({ matches, todayScript, todayAudioUrl, todayAudioDu
     "Order of play",
   ];
 
+  // Meilleur match selon un critère — null si aucun match en base
+  function bestBy(score: (m: Match) => number): Match | null {
+    return matches.reduce<Match | null>(
+      (best, m) => (best === null || score(m) > score(best) ? m : best),
+      null
+    );
+  }
+
   // joueur avec le plus d'aces = Player of the Day
-  const potd = matches.reduce((best, m) =>
-    m.winnerStats.aces > best.winnerStats.aces ? m : best
-  );
+  const potd = bestBy((m) => m.winnerStats.aces);
+  const bestFirstServe = bestBy((m) => m.winnerStats.firstServePercentage);
+  const bestAceDiff = bestBy((m) => m.winnerStats.aces - m.loserStats.aces);
+  const tournament = matches[0]?.tournament ?? "ATP";
 
   return (
     <>
@@ -188,13 +196,13 @@ export default function Home({ matches, todayScript, todayAudioUrl, todayAudioDu
           <div className={`${styles.stripCell} ${styles.stripCenter}`}>
             <div className={styles.stripKey}>Tournament:</div>
             <div className={styles.stripVal}>
-              {(matches[0]?.tournament ?? "ATP").toUpperCase()}
+              {tournament.toUpperCase()}
               {matches[0]?.round && ` · ${shortRound(matches[0].round)}`}
             </div>
           </div>
           <div className={`${styles.stripCell} ${styles.stripRight}`}>
             <div className={styles.stripKey}>Surface:</div>
-            <div className={styles.stripVal}>{(matches[0]?.surface ?? "CLAY").toUpperCase()} · OUTDOOR</div>
+            <div className={styles.stripVal}>{matches[0]?.surface.toUpperCase() ?? "—"}</div>
           </div>
         </div>
 
@@ -204,10 +212,10 @@ export default function Home({ matches, todayScript, todayAudioUrl, todayAudioDu
           <div className={styles.heroCard}>
             <div className={styles.heroTop}>
               <span className={`${styles.chip} ${styles.chipAccent}`}>
-                ● TODAY&apos;S EPISODE · EP 118
+                ● TODAY&apos;S EPISODE
               </span>
               <span className={styles.meta}>
-                {formatHeroDate(displayDate)} · {matches[0]?.tournament ?? "ATP"} · {matches.length} matches
+                {formatHeroDate(displayDate)} · {tournament} · {matches.length} matches
               </span>
             </div>
 
@@ -270,6 +278,9 @@ export default function Home({ matches, todayScript, todayAudioUrl, todayAudioDu
         </div>
 
         <div className={styles.matchStrip} ref={stripRef}>
+          {matches.length === 0 && (
+            <p className={styles.emptyState}>No matches yet.</p>
+          )}
           {matches.map((match) => {
             const sets = parseSets(match.score);
             return (
@@ -330,6 +341,10 @@ export default function Home({ matches, todayScript, todayAudioUrl, todayAudioDu
         <div className={styles.row2}>
           <div className={styles.potd}>
             <div className={styles.potdEyebrow}>● PLAYER OF THE DAY</div>
+            {!potd ? (
+              <p className={styles.emptyState}>No player of the day yet.</p>
+            ) : (
+            <>
             <div className={styles.potdName}>{potd.winner.name.split(" ").slice(-1)[0]}</div>
             <div className={styles.potdTag}>
               &ldquo;{potd.winnerStats.aces} aces, {potd.winnerStats.firstServePercentage}% first serve — dominant from start to finish.&rdquo;
@@ -353,6 +368,8 @@ export default function Home({ matches, todayScript, todayAudioUrl, todayAudioDu
               </div>
             </div>
             <div className={styles.potdPhoto}>[ player photo ]</div>
+            </>
+            )}
           </div>
 
           <div className={styles.recent}>
@@ -386,69 +403,51 @@ export default function Home({ matches, todayScript, todayAudioUrl, todayAudioDu
           <span>Insights · what today meant</span>
         </div>
         <div className={styles.insGrid}>
-          <div className={styles.insStat}>
-            <div className={styles.insNum}>
-              {Math.max(...matches.map((m) => m.winnerStats.firstServePercentage))}%
-            </div>
-            <div className={styles.insLbl}>Highest 1st-serve % today</div>
-            <div className={styles.insWho}>
-              —{" "}
-              {
-                matches.reduce((best, m) =>
-                  m.winnerStats.firstServePercentage >
-                  best.winnerStats.firstServePercentage
-                    ? m
-                    : best
-                ).winner.name
-              }
-            </div>
-          </div>
+          {!bestFirstServe && !bestAceDiff && !todayRead && !todayBracketWatch && (
+            <p className={styles.emptyState}>No insights yet.</p>
+          )}
 
-          <div className={styles.insStat}>
-            <div className={styles.insNum}>
-              +{Math.max(...matches.map((m) => m.winnerStats.aces - m.loserStats.aces))}
+          {bestFirstServe && (
+            <div className={styles.insStat}>
+              <div className={styles.insNum}>
+                {bestFirstServe.winnerStats.firstServePercentage}%
+              </div>
+              <div className={styles.insLbl}>Highest 1st-serve % today</div>
+              <div className={styles.insWho}>— {bestFirstServe.winner.name}</div>
             </div>
-            <div className={styles.insLbl}>Ace differential (best match)</div>
-            <div className={styles.insWho}>
-              —{" "}
-              {
-                matches.reduce((best, m) =>
-                  m.winnerStats.aces - m.loserStats.aces >
-                  best.winnerStats.aces - best.loserStats.aces
-                    ? m
-                    : best
-                ).winner.name
-              }
+          )}
+
+          {bestAceDiff && (
+            <div className={styles.insStat}>
+              <div className={styles.insNum}>
+                +{bestAceDiff.winnerStats.aces - bestAceDiff.loserStats.aces}
+              </div>
+              <div className={styles.insLbl}>Ace differential (best match)</div>
+              <div className={styles.insWho}>— {bestAceDiff.winner.name}</div>
             </div>
-          </div>
+          )}
 
-          <div className={styles.insTake}>
-            <div className={styles.insEyebrow}>● THE READ</div>
-            <h4>Clay is back. The top seeds look untouchable early in Madrid.</h4>
-            <p>
-              Three of five matches went in straight sets. Both Alcaraz and
-              Sinner dominated from the baseline — expect deep runs for the top
-              half of the draw.
-            </p>
-            <div className={styles.byline}>— ATP Daily, editor&apos;s note</div>
-          </div>
+          {todayRead && (
+            <div className={styles.insTake}>
+              <div className={styles.insEyebrow}>● THE READ</div>
+              <p>{todayRead}</p>
+              <div className={styles.byline}>— ATP Daily, editor&apos;s note</div>
+            </div>
+          )}
 
-          <div className={styles.insTake}>
-            <div className={styles.insEyebrow}>● BRACKET WATCH</div>
-            <h4>Ruud beats Rune in three. The bottom half is wide open.</h4>
-            <p>
-              Rune&apos;s early exit removes a dangerous floater. Ruud looks
-              set for a quarter-final clash with Alcaraz — a rematch the
-              draw needed.
-            </p>
-            <div className={styles.byline}>— ATP Daily, bracket watch</div>
-          </div>
+          {todayBracketWatch && (
+            <div className={styles.insTake}>
+              <div className={styles.insEyebrow}>● BRACKET WATCH</div>
+              <p>{todayBracketWatch}</p>
+              <div className={styles.byline}>— ATP Daily, bracket watch</div>
+            </div>
+          )}
         </div>
 
         {/* ── Footer ── */}
         <div className={styles.foot}>
           <span>
-            ATP DAILY · {matches[0]?.tournament ?? "ATP"} ·{" "}
+            ATP DAILY · {tournament} ·{" "}
             {new Date(displayDate + "T00:00:00Z").toLocaleDateString("en-US", {
               month: "long",
               day: "numeric",
@@ -464,7 +463,7 @@ export default function Home({ matches, todayScript, todayAudioUrl, todayAudioDu
       {/* Mini-player fixe — apparaît quand le hero sort du viewport */}
       <MiniPlayer
         visible={!heroVisible && !!audioUrl}
-        title="Today's Episode · EP 118 · Madrid Open"
+        title={`Today's Episode · ${tournament}`}
         playing={playerState.playing}
         currentTime={playerState.currentTime}
         duration={playerState.duration}
@@ -535,7 +534,7 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
         .order("created_at", { ascending: true }),
       supabaseAdmin
         .from("episodes")
-        .select("script, audio_url, audio_duration, headline")
+        .select("script, audio_url, audio_duration, headline, the_read, bracket_watch")
         .eq("date", displayDate)
         .maybeSingle(),
       // 6 derniers épisodes antérieurs au displayDate, du plus récent au plus ancien
@@ -553,6 +552,8 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
       audio_url: string | null;
       audio_duration: number | null;
       headline: string | null;
+      the_read: string | null;
+      bracket_watch: string | null;
     } | null;
     const dbRecent = rawRecent as Array<{
       date: string;
@@ -569,31 +570,31 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
       audio_url: ep.audio_url,
     }));
 
-    const loadedMatches =
-      dbMatches && dbMatches.length > 0
-        ? dbMatches.map(dbMatchToMatch)
-        : mockMatches;
-
     return {
       props: {
-        matches: loadedMatches,
+        matches: (dbMatches ?? []).map(dbMatchToMatch),
         todayScript: dbEpisode?.script ?? null,
         todayAudioUrl: dbEpisode?.audio_url ?? null,
         todayAudioDuration: dbEpisode?.audio_duration ?? null,
         todayHeadline: dbEpisode?.headline ?? null,
+        todayRead: dbEpisode?.the_read ?? null,
+        todayBracketWatch: dbEpisode?.bracket_watch ?? null,
         recentEpisodes,
         displayDate,
       },
     };
-  } catch {
-    // Fallback sur les données mock si Supabase est inaccessible
+  } catch (err) {
+    // Supabase inaccessible : page vide plutôt que des données inventées
+    console.error("Home data load failed:", (err as Error).message);
     return {
       props: {
-        matches: mockMatches,
+        matches: [],
         todayScript: null,
         todayAudioUrl: null,
         todayAudioDuration: null,
         todayHeadline: null,
+        todayRead: null,
+        todayBracketWatch: null,
         recentEpisodes: [],
         displayDate: today,
       },

@@ -1,21 +1,4 @@
 {
-  "functions": {
-    "pages/api/cron/generate-content.ts": { "maxDuration": 300 },
-    "pages/api/cron/generate-audio.ts": { "maxDuration": 300 },
-    "pages/api/recap.ts": { "maxDuration": 30 },
-    "pages/api/podcast.ts": { "maxDuration": 60 },
-    "pages/api/tts.ts": { "maxDuration": 60 }
-  },
-  "crons": [
-    {
-      "path": "/api/cron/generate-content",
-      "schedule": "0 6 * * *"
-    },
-    {
-      "path": "/api/cron/generate-audio",
-      "schedule": "15 6 * * *"
-    }
-  ],
   "headers": [
     {
       "source": "/(.*)",
