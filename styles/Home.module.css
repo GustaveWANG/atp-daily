@@ -1,6 +1,6 @@
 /* ── Page shell ─────────────────────────────────────────────────────────────── */
 .page {
-  max-width: 1280px;
+  max-width: 960px;
   margin: 0 auto;
   padding: 24px 36px 56px;
   background: var(--paper);
@@ -13,6 +13,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 4px 0 10px;
+  border-bottom: 1.5px solid var(--line);
 }
 
 .logo {
@@ -31,73 +32,17 @@
   height: 22px;
 }
 
-.navItems {
-  display: flex;
-  gap: 26px;
-  font-size: 14px;
-  cursor: default;
-}
-
-.active {
-  color: var(--accent);
-  border-bottom: 2px solid var(--accent);
-  padding-bottom: 2px;
-  font-weight: 700;
-}
-
-.navCta {
-  font-family: 'Caveat', cursive;
-  font-weight: 700;
-  font-size: 18px;
-  border: 1.5px solid var(--line);
-  padding: 6px 14px;
-  border-radius: 999px 4px 999px 999px;
-  cursor: default;
-}
-
-/* ── Top strip ───────────────────────────────────────────────────────────────── */
-.strip {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  border-top: 1.5px solid var(--line);
-  border-bottom: 1.5px solid var(--line);
-  padding: 14px 4px;
-  font-family: 'JetBrains Mono', monospace;
-}
-
-.stripCell {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.stripCenter { text-align: center; }
-.stripRight  { text-align: right; }
-
-.stripKey {
-  font-size: 10px;
-  color: var(--ink-2);
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-}
-
-.stripVal {
-  font-size: 14px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  font-family: 'Archivo', sans-serif;
-}
-
 /* ── Hero ────────────────────────────────────────────────────────────────────── */
 .hero {
   position: relative;
-  padding: 70px 0 28px;
+  padding: 40px 0 28px;
+  scroll-margin-top: 16px;
 }
 
 .heroWordmark {
   font-family: 'Archivo', sans-serif;
   font-weight: 900;
-  font-size: 240px;
+  font-size: 180px;
   line-height: 0.85;
   letter-spacing: -0.045em;
   color: var(--accent);
@@ -118,7 +63,7 @@
   color: var(--paper);
   border: 1.5px solid var(--ink);
   border-radius: 28px 6px 28px 6px;
-  margin-top: 90px;
+  margin-top: 80px;
   padding: 24px 28px 22px;
   box-shadow: 8px 8px 0 var(--ink);
 }
@@ -158,8 +103,8 @@
 
 .heroTitle {
   font-weight: 900;
-  font-size: 48px;
-  line-height: 0.96;
+  font-size: 44px;
+  line-height: 0.98;
   letter-spacing: -0.025em;
   margin: 14px 0 10px;
   color: var(--paper);
@@ -168,25 +113,9 @@
 .heroSub {
   font-size: 15px;
   color: color-mix(in oklch, var(--paper) 68%, var(--ink));
-  max-width: 600px;
-  margin-bottom: 16px;
+  max-width: 640px;
+  margin: 0 0 16px;
   line-height: 1.5;
-}
-
-.heroChapters {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-bottom: 16px;
-}
-
-.heroCh {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 11px;
-  color: color-mix(in oklch, var(--paper) 68%, var(--ink));
-  padding: 3px 8px;
-  border: 1px dashed color-mix(in oklch, var(--paper) 35%, transparent);
-  border-radius: 999px;
 }
 
 .heroBottom {
@@ -196,27 +125,6 @@
   border-top: 1px dashed color-mix(in oklch, var(--paper) 25%, transparent);
   padding-top: 16px;
   margin-top: 4px;
-}
-
-.playBtn {
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  border: 1.5px solid var(--clay);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--clay);
-  color: var(--ink);
-  font-size: 20px;
-  flex-shrink: 0;
-  cursor: pointer;
-  transition: opacity 0.15s;
-}
-
-.playBtn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
 }
 
 .wave {
@@ -242,39 +150,6 @@
   white-space: nowrap;
 }
 
-.generateEpisodeBtn {
-  background: var(--accent);
-  color: var(--paper);
-  border: none;
-  padding: 10px 20px;
-  border-radius: 8px 2px 8px 2px;
-  cursor: pointer;
-  font-family: 'Archivo', sans-serif;
-  font-weight: 700;
-  font-size: 14px;
-  margin-bottom: 16px;
-  transition: opacity 0.15s;
-  display: inline-block;
-}
-
-.generateEpisodeBtn:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-
-.heroError {
-  color: var(--live);
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 11px;
-  margin-top: 8px;
-}
-
-.audioPlayer {
-  width: 100%;
-  margin-top: 14px;
-  border-radius: 4px;
-}
-
 /* ── Section header ──────────────────────────────────────────────────────────── */
 .secH {
   display: flex;
@@ -287,303 +162,10 @@
   color: var(--ink-2);
   border-bottom: 1.5px solid var(--line);
   padding-bottom: 6px;
-  margin: 26px 0 14px;
+  margin: 26px 0 4px;
 }
 
-.secR {
-  color: var(--accent);
-  display: flex;
-  gap: 14px;
-  align-items: center;
-}
-
-.secArrows {
-  display: flex;
-  gap: 6px;
-}
-
-.secArrows span {
-  width: 26px;
-  height: 26px;
-  border: 1.2px solid var(--line);
-  border-radius: 50%;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 14px;
-  cursor: pointer;
-  user-select: none;
-}
-
-/* ── Match strip ─────────────────────────────────────────────────────────────── */
-.matchStrip {
-  display: flex;
-  gap: 12px;
-  overflow-x: auto;
-  padding-bottom: 8px;
-  scrollbar-width: thin;
-  scroll-snap-type: x mandatory;
-}
-
-.matchStrip::-webkit-scrollbar { height: 6px; }
-.matchStrip::-webkit-scrollbar-thumb { background: var(--line-soft); border-radius: 4px; }
-
-.matchCard {
-  flex: 0 0 280px;
-  border: 1.5px solid var(--line);
-  border-radius: 14px 4px 16px 4px;
-  background: var(--paper);
-  padding: 14px 16px;
-  scroll-snap-align: start;
-}
-
-.matchMeta {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 10px;
-  color: var(--ink-2);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  margin-bottom: 10px;
-}
-
-.matchStatus { margin-left: auto; }
-
-.matchRow {
-  display: grid;
-  grid-template-columns: 18px 1fr auto;
-  gap: 8px;
-  align-items: center;
-  padding: 7px 0;
-}
-
-.matchRow + .matchRow {
-  border-top: 1px dashed var(--line-soft);
-}
-
-.avatar {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: var(--paper-2);
-  border: 1.2px solid var(--line);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 8px;
-  flex-shrink: 0;
-}
-
-.flag {
-  width: 16px;
-  height: 12px;
-  border: 1px solid var(--line-soft);
-  display: block;
-  flex-shrink: 0;
-  border-radius: 1px;
-}
-
-.matchName {
-  font-size: 15px;
-  font-weight: 700;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.matchSeed {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 10px;
-  color: var(--ink-2);
-  margin-left: 4px;
-  font-weight: 400;
-}
-
-.winnerRow .matchName::after {
-  content: "▸";
-  margin-left: 5px;
-  color: var(--accent);
-  font-size: 11px;
-}
-
-.matchScore {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 13px;
-  font-weight: 500;
-  letter-spacing: 0.06em;
-  display: flex;
-  gap: 5px;
-}
-
-.matchScore b { font-weight: 700; }
-
-.recapBtn {
-  display: block;
-  width: 100%;
-  margin-top: 12px;
-  background: transparent;
-  color: var(--accent);
-  border: 1.2px solid var(--accent);
-  padding: 5px 10px;
-  border-radius: 6px 2px 6px 2px;
-  cursor: pointer;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 10px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  text-align: center;
-  transition: background 0.15s, color 0.15s;
-}
-
-.recapBtn:hover:not(:disabled) {
-  background: var(--accent-soft);
-}
-
-.recapBtn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.recapComingSoon {
-  display: block;
-  margin-top: 12px;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 10px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--ink-2);
-  opacity: 0.55;
-  text-align: center;
-}
-
-.cardError {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 10px;
-  color: var(--live);
-  margin-top: 6px;
-}
-
-.recapBox {
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px dashed var(--line-soft);
-  font-size: 12px;
-  line-height: 1.65;
-  color: var(--ink-2);
-}
-
-.recapBox p { margin: 0 0 7px; }
-.recapBox p:last-child { margin-bottom: 0; }
-
-/* ── Row 2: Player of the Day + Recent Episodes ──────────────────────────────── */
-.row2 {
-  display: grid;
-  grid-template-columns: 1.2fr 1fr;
-  gap: 18px;
-  margin-top: 8px;
-}
-
-.potd {
-  background: var(--navy);
-  color: var(--paper);
-  border-radius: 22px 6px 22px 6px;
-  padding: 24px;
-  position: relative;
-  overflow: hidden;
-}
-
-.potdEyebrow {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 11px;
-  letter-spacing: 0.18em;
-  color: var(--clay);
-  text-transform: uppercase;
-}
-
-.potdName {
-  font-weight: 900;
-  font-size: 52px;
-  line-height: 0.94;
-  letter-spacing: -0.03em;
-  margin: 10px 0 6px;
-  color: var(--paper);
-}
-
-.potdTag {
-  font-family: 'Caveat', cursive;
-  font-size: 20px;
-  color: color-mix(in oklch, var(--paper) 75%, transparent);
-  line-height: 1.3;
-  max-width: calc(100% - 160px);
-}
-
-.potdStats {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 10px;
-  margin-top: 20px;
-  border-top: 1px dashed color-mix(in oklch, var(--paper) 30%, transparent);
-  padding-top: 16px;
-}
-
-.potdStat b {
-  display: block;
-  font-size: 24px;
-  font-weight: 900;
-  line-height: 1;
-  color: var(--clay);
-}
-
-.potdStat span {
-  font-size: 10px;
-  color: color-mix(in oklch, var(--paper) 65%, transparent);
-  font-family: 'JetBrains Mono', monospace;
-  letter-spacing: 0.04em;
-}
-
-.potdPhoto {
-  position: absolute;
-  right: -20px;
-  top: 0;
-  bottom: 0;
-  width: 180px;
-  background: repeating-linear-gradient(
-    45deg,
-    transparent 0 8px,
-    color-mix(in oklch, var(--paper) 10%, transparent) 8px 9px
-  );
-  border-left: 1px dashed color-mix(in oklch, var(--paper) 22%, transparent);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 10px;
-  color: color-mix(in oklch, var(--paper) 40%, transparent);
-}
-
-.recent {
-  border: 1.5px solid var(--line);
-  border-radius: 22px 6px 22px 6px;
-  padding: 18px 20px;
-}
-
-.recentH {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  margin-bottom: 4px;
-}
-
-.recentH h3 {
-  font-weight: 900;
-  font-size: 20px;
-  margin: 0;
-  letter-spacing: -0.01em;
-}
-
+/* ── Liste des épisodes ──────────────────────────────────────────────────────── */
 .recentList { display: flex; flex-direction: column; }
 
 .recentItem {
@@ -591,11 +173,32 @@
   grid-template-columns: auto 1fr auto;
   gap: 12px;
   align-items: center;
-  padding: 10px 0;
+  padding: 12px 8px;
+  border: 0;
   border-bottom: 1px dashed var(--line-soft);
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s;
 }
 
 .recentItem:last-child { border-bottom: 0; }
+
+.recentItem:hover:not(:disabled) {
+  background: color-mix(in oklch, var(--accent) 6%, transparent);
+}
+
+.recentItem:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.recentActive .recentTitle {
+  color: var(--accent);
+  font-weight: 700;
+}
 
 .recentDay {
   font-family: 'JetBrains Mono', monospace;
@@ -605,7 +208,7 @@
 }
 
 .recentTitle {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   line-height: 1.3;
 }
@@ -616,7 +219,7 @@
   color: var(--ink-2);
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   white-space: nowrap;
 }
 
@@ -631,80 +234,6 @@
   justify-content: center;
   font-size: 9px;
   flex-shrink: 0;
-  cursor: pointer;
-}
-
-/* ── Insights ────────────────────────────────────────────────────────────────── */
-.insGrid {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1.2fr 1.2fr;
-  gap: 14px;
-}
-
-.insStat {
-  border: 1.5px solid var(--line);
-  border-radius: 14px 4px 14px 4px;
-  padding: 18px 18px 16px;
-  background: var(--paper);
-}
-
-.insNum {
-  font-family: 'Archivo', sans-serif;
-  font-weight: 900;
-  font-size: 56px;
-  line-height: 0.9;
-  letter-spacing: -0.035em;
-  color: var(--accent);
-}
-
-.insLbl {
-  font-size: 13px;
-  color: var(--ink-2);
-  margin: 8px 0 4px;
-  line-height: 1.3;
-}
-
-.insWho {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 11px;
-  color: var(--ink);
-}
-
-.insTake {
-  border: 1.5px solid var(--line);
-  border-radius: 14px 4px 14px 4px;
-  padding: 18px;
-  background: var(--paper-2);
-}
-
-.insEyebrow {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 11px;
-  color: var(--accent);
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-}
-
-.insTake h4 {
-  font-weight: 900;
-  font-size: 20px;
-  line-height: 1.15;
-  margin: 8px 0;
-  letter-spacing: -0.01em;
-}
-
-.insTake p {
-  font-size: 13px;
-  color: var(--ink-2);
-  line-height: 1.5;
-  margin: 0;
-}
-
-.byline {
-  font-family: 'Caveat', cursive;
-  font-size: 16px;
-  color: var(--ink);
-  margin-top: 10px;
 }
 
 /* ── Footer ──────────────────────────────────────────────────────────────────── */
@@ -722,108 +251,51 @@
   text-transform: uppercase;
 }
 
-/* ── Lien de navigation vers la page de détail du match ─────────────────────── */
-.matchLink {
-  display: block;
-  text-decoration: none;
-  color: inherit;
-  transition: opacity 0.15s;
+/* ── État vide (aucune donnée en base) ───────────────────────────────────────── */
+.emptyState {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--ink-2);
+  margin: 0;
+  padding: 16px 0;
 }
 
-.matchLink:hover {
-  opacity: 0.75;
-}
-
-/* ─────────────────────────────────────────────────────────────────────────────
-   Responsive — tablette ≤ 900px : grilles à 2 colonnes deviennent 1 colonne,
-   le wordmark surdimensionné se réduit pour ne plus déborder.
-   ─────────────────────────────────────────────────────────────────────────── */
+/* ── Responsive — tablette ≤ 900px ───────────────────────────────────────────── */
 @media (max-width: 900px) {
   .page {
     padding: 20px 24px 56px;
   }
-
   .heroWordmark {
-    font-size: 140px;
-    top: 40px;
+    font-size: 130px;
+    top: 30px;
   }
-
   .heroCard {
     margin-top: 60px;
   }
-
   .heroTitle {
-    font-size: 36px;
-  }
-
-  /* Player of the day + Recent episodes empilés */
-  .row2 {
-    grid-template-columns: 1fr;
-  }
-
-  /* Insights : 4 colonnes → 2x2 */
-  .insGrid {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  /* Photo joueur masquée, le tag récupère la pleine largeur */
-  .potdPhoto {
-    display: none;
-  }
-  .potdTag {
-    max-width: 100%;
+    font-size: 34px;
   }
 }
 
-/* ─────────────────────────────────────────────────────────────────────────────
-   Responsive — mobile ≤ 640px : tout est compacté, navItems et wordmark
-   masqués, le strip se stack verticalement.
-   ─────────────────────────────────────────────────────────────────────────── */
+/* ── Responsive — mobile ≤ 640px ─────────────────────────────────────────────── */
 @media (max-width: 640px) {
   .page {
     padding: 16px 16px 64px;
   }
-
-  /* Nav : on ne garde que le logo + CTA, les liens disparaissent */
-  .navItems {
-    display: none;
-  }
-  .navCta {
-    font-size: 16px;
-    padding: 5px 12px;
-  }
   .logo {
     font-size: 24px;
   }
-
-  /* Strip : 3 colonnes → empilées verticalement */
-  .strip {
-    grid-template-columns: 1fr;
-    gap: 8px;
-    padding: 10px 4px;
-  }
-  .stripCenter,
-  .stripRight {
-    text-align: left;
-  }
-  .stripVal {
-    font-size: 13px;
-    letter-spacing: 0.08em;
-  }
-
-  /* Hero : wordmark plus grand, positionné pour que la card en couvre la moitié
-     basse — comme sur desktop. */
   .hero {
-    padding: 50px 0 18px;
+    padding: 30px 0 18px;
   }
   .heroWordmark {
-    font-size: 92px;
-    top: 48px;
+    font-size: 84px;
+    top: 34px;
     letter-spacing: -0.04em;
   }
   .heroCard {
-    margin-top: 56px;
-    padding: 18px 18px 18px;
+    margin-top: 48px;
+    padding: 18px;
     border-radius: 18px 4px 18px 4px;
     box-shadow: 5px 5px 0 var(--ink);
   }
@@ -840,91 +312,20 @@
   .heroSub {
     font-size: 13px;
   }
-  .heroChapters {
-    gap: 5px;
-  }
-  .heroCh {
-    font-size: 10px;
-    padding: 2px 7px;
-  }
-
-  /* Section header : flèches du carrousel cachées (le scroll tactile suffit) */
   .secH {
     font-size: 10px;
   }
-  .secArrows {
-    display: none;
-  }
-
-  /* Match strip : cartes plus étroites + scroll naturel */
-  .matchCard {
-    flex: 0 0 240px;
-    padding: 12px 14px;
-  }
-  .matchName {
-    font-size: 14px;
-  }
-  .matchScore {
-    font-size: 12px;
-  }
-
-  /* Player of the day : compact, name réduit */
-  .potd {
-    padding: 18px;
-    border-radius: 18px 4px 18px 4px;
-  }
-  .potdName {
-    font-size: 38px;
-  }
-  .potdStats {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 14px;
-  }
-  .potdStat b {
-    font-size: 20px;
-  }
-
-  /* Recent episodes : padding réduit, titre moins gros */
-  .recent {
-    padding: 14px 16px;
-    border-radius: 18px 4px 18px 4px;
-  }
-  .recentH h3 {
-    font-size: 17px;
+  .recentItem {
+    padding: 10px 4px;
   }
   .recentTitle {
-    font-size: 12px;
+    font-size: 13px;
   }
   .recentDay {
     width: 46px;
     font-size: 10px;
   }
-
-  /* Insights : 2 cols → 1 col */
-  .insGrid {
-    grid-template-columns: 1fr;
-  }
-  .insNum {
-    font-size: 44px;
-  }
-  .insTake h4 {
-    font-size: 17px;
-  }
-
-  /* Footer : empilé verticalement pour ne pas écraser le texte */
   .foot {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 6px;
     font-size: 9px;
   }
-}
-
-/* ── État vide (aucune donnée en base) ───────────────────────────────────────── */
-.emptyState {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 12px;
-  color: var(--ink-2);
-  margin: 0;
-  padding: 16px 0;
 }
