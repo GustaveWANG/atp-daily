@@ -36,8 +36,12 @@ def require(name: str) -> str:
 
 
 # Models per role, as "provider:model" (see llm.py), e.g.
-#   deepseek:deepseek-v4-pro   deepseek:deepseek-flash   anthropic:claude-opus-5-5
+#   deepseek:deepseek-v4-pro   deepseek:deepseek-flash   anthropic:claude-sonnet-5-5
 # Override with an env var or a line in .env to compare models.
+# Per model call. Reasoning tokens count toward it, and DeepSeek can spend
+# 20k+ thinking before writing a full script.
+MAX_OUTPUT_TOKENS = int(os.environ.get("MAX_OUTPUT_TOKENS", "64000"))
+
 RESEARCH_MODEL = os.environ.get("RESEARCH_MODEL", "deepseek:deepseek-v4-pro")
 RESEARCH_EFFORT = os.environ.get("RESEARCH_EFFORT", "high")  # low | medium | high | max
 
@@ -73,7 +77,7 @@ VERIFY_MODEL = os.environ.get("VERIFY_MODEL") or RESEARCH_MODEL
 EDITOR_MODEL = os.environ.get("EDITOR_MODEL", "deepseek:deepseek-v4-pro")
 WRITER_MODEL = os.environ.get("WRITER_MODEL", "deepseek:deepseek-v4-pro")
 META_MODEL = os.environ.get("META_MODEL", "deepseek:deepseek-flash")
-REVIEWER_MODEL = os.environ.get("REVIEWER_MODEL", "anthropic:claude-opus-5-5")
+REVIEWER_MODEL = os.environ.get("REVIEWER_MODEL", "anthropic:claude-sonnet-5-5")
 AGENT_EFFORT = os.environ.get("AGENT_EFFORT", "high")
 
 # VALIDATE: rare-but-valid values that get flagged as outliers and verified.
@@ -93,5 +97,45 @@ SCRIPT_MAX_WORDS = 1600
 SCRIPT_MAX_LINE_WORDS = 90
 MAX_REVISIONS = 2
 
+# Dialogue checks on the script (write.dialogue_stats). "minor" only reports
+# them; switch to "blocking" once the script prompt teaches real back-and-forth,
+# so a flat script gets sent back for a rewrite.
+DIALOGUE_SEVERITY = "minor"
+DIALOGUE_MIN_QUESTIONS = 4  # lines with a real question in them
+DIALOGUE_MIN_SHORT_LINES = 4  # quick reactions of at most DIALOGUE_SHORT_LINE_WORDS
+DIALOGUE_SHORT_LINE_WORDS = 8
+DIALOGUE_MAX_SAME_SPEAKER = 1  # times one host speaks twice in a row
+DIALOGUE_MAX_RELAY_SHARE = 0.2  # lines opening with "And", "Plus"... that just add the next fact
+
 # EVALS: the judge grading a step's output.
-EVAL_MODEL = os.environ.get("EVAL_MODEL", "anthropic:claude-opus-5-5")
+EVAL_MODEL = os.environ.get("EVAL_MODEL", "anthropic:claude-sonnet-5-5")
+
+# PRODUCE: ElevenLabs TTS, one request per script line.
+# multilingual_v2 is ElevenLabs' steadiest model for long-form and takes the
+# neighbouring lines as context. Voice ids are from the Voice Library (the old
+# default voices expire at the end of 2026); override in .env to try others.
+TTS_MODEL = os.environ.get("TTS_MODEL", "eleven_multilingual_v2")
+TTS_OUTPUT_FORMAT = "mp3_44100_128"
+TTS_VOICES = {
+    "ALEX": os.environ.get("ELEVENLABS_VOICE_ALEX", "g7LVvkPWALzPxOQbF6OE"),  # Jade - Upbeat and Natural
+    "SAM": os.environ.get("ELEVENLABS_VOICE_SAM", "gOupLcAkjEnguROwi4oS"),  # Darian - Warm Grounded Storyteller
+}
+TTS_VOICE_SETTINGS = {"stability": 0.45, "similarity_boost": 0.75, "style": 0.15, "use_speaker_boost": True}
+# Concurrent requests allowed for multilingual_v2: Free 2, Starter 3, Creator 5, Pro 10.
+TTS_CONCURRENCY = int(os.environ.get("TTS_CONCURRENCY", "2"))
+TTS_MAX_ATTEMPTS = 3  # per line: first take plus re-rolls with a new seed when QA fails
+
+# Audio QA: speech-to-text each line and compare it with the script.
+STT_MODEL = "scribe_v2"
+QA_MIN_SIMILARITY = 0.85  # word-level match, transcript vs script line
+QA_MIN_WORDS_PER_SEC = 1.4  # slower usually means stalls or garbage
+QA_MAX_WORDS_PER_SEC = 4.2  # faster usually means skipped words
+QA_MAX_SILENCE = 1.2  # seconds of silence allowed inside a line
+QA_SILENCE_DB = -45
+
+# Stitching
+LINE_GAP = 0.3  # seconds between lines
+SEGMENT_GAP = 0.8  # between segments (and around the intro / outro)
+AUDIO_SAMPLE_RATE = 44100
+AUDIO_BITRATE = "128k"
+AUDIO_LOUDNESS_LUFS = -16  # podcast standard

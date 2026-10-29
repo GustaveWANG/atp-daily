@@ -111,7 +111,7 @@ class AnthropicSession(ChatSession):
             # Streamed because the SDK refuses non-streaming calls this large.
             with self.client.beta.messages.stream(
                 model=self.model,
-                max_tokens=32000,
+                max_tokens=config.MAX_OUTPUT_TOKENS,
                 system=self.system,
                 tools=self.tools,
                 messages=self.messages,
@@ -192,7 +192,7 @@ class OpenAICompatibleSession(ChatSession):
             model=self.model,
             messages=self.messages,
             tools=self.tools,
-            max_tokens=32000,
+            max_tokens=config.MAX_OUTPUT_TOKENS,
             **kwargs,
         )
         choice = response.choices[0]

@@ -3,10 +3,11 @@
 Usage:
     uv run python scripts/run_step.py discover [--date YYYY-MM-DD]
     uv run python scripts/run_step.py validate plan write review --date 2026-10-27
+    uv run python scripts/run_step.py produce --date 2026-10-27   # audio, needs ffmpeg
 
 --date defaults to yesterday (UTC). Each step reads the earlier steps' output
 from data/runs/<date>/ and writes its own to data/runs/<date>/<step>.json, so
-any step can be rerun on its own.
+any step can be rerun on its own. --run <name> uses data/runs/<name>/ instead.
 """
 
 import argparse
@@ -17,9 +18,9 @@ from pydantic import BaseModel
 
 from atp_pipeline import config
 from atp_pipeline.schemas import DiscoverOutput, Draft, FactSheet, Outline, ReviewOutput, StepUsage
-from atp_pipeline.steps import discover, plan, review, validate, write
+from atp_pipeline.steps import discover, plan, produce, review, validate, write
 
-STEPS = ["discover", "validate", "plan", "write", "review"]
+STEPS = ["discover", "validate", "plan", "write", "review", "produce"]
 
 
 class Run:
@@ -83,6 +84,7 @@ def run_plan(run: Run) -> None:
     print(f"plan: {outline.episode_angle}")
     for i, seg in enumerate(outline.segments):
         print(f"  {i}. {seg.title} - {seg.angle}")
+        print(f"     take: {seg.take}")
         print(f"     matches {len(seg.match_ids)}, articles {seg.article_ids}, outliers {len(seg.outlier_ids)}")
     print(f"  quick hits: {len(outline.quick_hits)} matches")
     _print_usage(outline.usage)
@@ -109,9 +111,30 @@ def run_review(run: Run) -> None:
     run.save("review", result)
 
 
+def run_produce(run: Run) -> None:
+    result = run.load("review", ReviewOutput)
+    if result.status != "passed":
+        print("produce: the script has not passed review, no audio made")
+        return
+    output = produce.run(result, run.dir / "audio")
+    failed = [line for line in output.lines if line.issues]
+    rerolled = sum(1 for line in output.lines if line.attempts > 1)
+    print(f"produce: {len(output.lines)} lines, {output.duration / 60:.1f} min, "
+          f"{rerolled} re-rolled, {len(failed)} still failing QA -> {output.status.upper()}")
+    for line in failed:
+        print(f"  line {line.index} {line.speaker}: {'; '.join(line.issues)}")
+        print(f"      heard: {line.transcript[:120]!r}")
+    u = output.usage
+    print(f"  elevenlabs: {u.tts_requests} TTS requests / {u.tts_characters} characters, "
+          f"{u.stt_requests} STT requests / {u.stt_seconds:g}s, {u.cache_hits} cache hits")
+    print(f"  audio: {run.dir / output.audio_file}")
+    run.save("produce", output)
+
+
 def _print_draft(draft: Draft) -> None:
     words = sum(len(line.text.split()) for line in draft.script)
     print(f"write: script {len(draft.script)} lines / {words} words, {len(draft.recaps)} recaps")
+    print(f"  dialogue: {write.dialogue_stats(draft.script)}")
     print(f"  title: {draft.meta.title}\n  headline: {draft.meta.headline}")
     for i in draft.format_issues:
         print(f"  format: {i.target}{f' line {i.line}' if i.line else ''}: {i.issue}")
@@ -129,9 +152,10 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("steps", nargs="+", choices=STEPS)
     parser.add_argument("--date", default=(datetime.now(timezone.utc).date() - timedelta(days=1)).isoformat())
+    parser.add_argument("--run", help="run folder under data/runs/ (default: the date), to keep experiments apart")
     args = parser.parse_args()
 
-    run = Run(args.date)
+    run = Run(args.run or args.date)
     for step in sorted(set(args.steps), key=STEPS.index):
         globals()[f"run_{step}"](run)
     return 0

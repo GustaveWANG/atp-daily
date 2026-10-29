@@ -155,6 +155,7 @@ class FactSheet(BaseModel):
 class Segment(BaseModel):
     title: str  # becomes a chapter title
     angle: str  # the storyline in one or two sentences
+    take: str = ""  # the point of view the segment argues; empty in outlines made before it existed
     match_ids: list[str]
     article_ids: list[str]
     outlier_ids: list[str]
@@ -223,3 +224,37 @@ class ReviewOutput(BaseModel):
     rounds: list[ReviewRound]
     draft: Draft  # the final, possibly revised draft
     usage: StepUsage
+
+
+# ------------------------------------------------------------------- PRODUCE
+
+
+class AudioLine(BaseModel):
+    index: int  # 1-based, matches render_script's numbering
+    speaker: Literal["ALEX", "SAM"]
+    file: str  # relative to the run's audio/ dir
+    duration: float  # seconds, from ffprobe
+    transcript: str  # what speech-to-text heard
+    similarity: float  # 0..1, transcript vs script line
+    attempts: int
+    issues: list[str]  # empty when the line passed QA
+
+
+class AudioUsage(BaseModel):
+    tts_requests: int = 0
+    tts_characters: int = 0  # billed; cache hits excluded
+    stt_requests: int = 0
+    stt_seconds: float = 0
+    cache_hits: int = 0
+
+
+class ProduceOutput(BaseModel):
+    target_date: str
+    status: Literal["passed", "needs_review"]
+    script_hash: str  # the audio belongs to this exact script
+    audio_file: str  # relative to the run dir
+    duration: float  # seconds, of the stitched episode
+    tts_model: str
+    voices: dict[str, str]  # speaker -> ElevenLabs voice id
+    lines: list[AudioLine]
+    usage: AudioUsage

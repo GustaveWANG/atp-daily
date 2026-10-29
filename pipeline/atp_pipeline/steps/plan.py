@@ -40,6 +40,8 @@ def run(sheet: FactSheet, open_session=None) -> Outline:
         for i, seg in enumerate(answer.segments):
             if not seg.match_ids:
                 problems.append(f"segment {i} has no match_ids")
+            if not seg.take.strip():
+                problems.append(f"segment {i} has no take")
             for kind, ids, known in (("match", seg.match_ids, match_ids), ("article", seg.article_ids, article_ids),
                                      ("outlier", seg.outlier_ids, outlier_ids)):
                 problems += [f"segment {i}: unknown {kind} id {x!r}" for x in ids if x not in known]

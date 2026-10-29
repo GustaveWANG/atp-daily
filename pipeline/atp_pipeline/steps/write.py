@@ -166,7 +166,7 @@ def _assemble(sheet, outline, script, recaps, meta, usage) -> Draft:
         recaps=recaps,
         meta=meta,
         chapter_titles=[seg.title for seg in outline.segments],
-        format_issues=check_format(script, recaps, meta, len(outline.segments)),
+        format_issues=check_format(script, recaps, meta, len(outline.segments), thin_match_ids(sheet)),
         usage=usage,
     )
 
@@ -187,7 +187,15 @@ def _blocking(target: str, issue: str, line: int | None = None) -> ReviewIssue:
     return ReviewIssue(severity="blocking", target=target, line=line, issue=issue, suggestion="Fix the format.")
 
 
-def check_format(script: list[ScriptLine], recaps: list[Recap], meta: EpisodeMeta, n_segments: int) -> list[ReviewIssue]:
+def thin_match_ids(sheet: FactSheet) -> set[str]:
+    """Matches with neither stats nor articles: only a score to report, so
+    their recap is held to a shorter minimum instead of padded with guesses."""
+    with_articles = {mid for a in sheet.articles for mid in a.match_ids}
+    return {m.id for m in sheet.matches if m.stats is None and m.id not in with_articles}
+
+
+def check_format(script: list[ScriptLine], recaps: list[Recap], meta: EpisodeMeta, n_segments: int,
+                 thin: set[str] = frozenset()) -> list[ReviewIssue]:
     issues = []
     words = 0
     for i, line in enumerate(script, 1):
@@ -209,10 +217,14 @@ def check_format(script: list[ScriptLine], recaps: list[Recap], meta: EpisodeMet
     missing = set(range(n_segments)) - {line.segment for line in script}
     if missing:
         issues.append(_blocking("script", f"outline segments {sorted(missing)} have no lines"))
+    issues += check_dialogue(script)
 
     for r in recaps:
         n = len(r.text.split())
-        if not 80 <= n <= 350:
+        if r.match_id in thin:
+            if not 30 <= n <= 150:
+                issues.append(_blocking(f"recap:{r.match_id}", f"recap is {n} words; aim for 40-100 (score only)"))
+        elif not 80 <= n <= 350:
             issues.append(_blocking(f"recap:{r.match_id}", f"recap is {n} words; aim for 120-250"))
         if any(MARKDOWN.search(p) for p in r.text.splitlines()):
             issues.append(_blocking(f"recap:{r.match_id}", "recap contains markdown; plain text only"))
@@ -222,3 +234,46 @@ def check_format(script: list[ScriptLine], recaps: list[Recap], meta: EpisodeMet
     if len(meta.headline) > 180:
         issues.append(_blocking("meta", f"headline is {len(meta.headline)} characters (max 160)"))
     return issues
+
+
+# ---------------------------------------------------------- dialogue check
+
+# Openers that tack the next fact onto the other host's line instead of
+# answering it: the "relay" pattern that makes two hosts sound like one.
+RELAY_OPENER = re.compile(r"^(and|plus|also|on top of that|what's more)\b", re.IGNORECASE)
+
+
+def dialogue_stats(script: list[ScriptLine]) -> dict:
+    """Cheap signals of back-and-forth. Speaker-based ones skip each host's first line."""
+    n = len(script)
+    turns = list(zip(script, script[1:]))
+    return {
+        "lines": n,
+        "questions": sum("?" in line.text for line in script),
+        "short_lines": sum(len(line.text.split()) <= config.DIALOGUE_SHORT_LINE_WORDS for line in script),
+        "same_speaker": sum(a.speaker == b.speaker for a, b in turns),
+        "relay_lines": sum(bool(RELAY_OPENER.match(b.text.strip())) for a, b in turns if a.speaker != b.speaker),
+        "sam_word_share": round(
+            sum(len(l.text.split()) for l in script if l.speaker == "SAM")
+            / max(1, sum(len(l.text.split()) for l in script)), 2),
+    }
+
+
+def check_dialogue(script: list[ScriptLine]) -> list[ReviewIssue]:
+    s = dialogue_stats(script)
+    problems = []
+    if s["questions"] < config.DIALOGUE_MIN_QUESTIONS:
+        problems.append(f"only {s['questions']} lines ask a question (want {config.DIALOGUE_MIN_QUESTIONS}+); "
+                        "the hosts should ask each other real questions, not just take turns stating facts")
+    if s["short_lines"] < config.DIALOGUE_MIN_SHORT_LINES:
+        problems.append(f"only {s['short_lines']} short reactions of {config.DIALOGUE_SHORT_LINE_WORDS} words or "
+                        f"fewer (want {config.DIALOGUE_MIN_SHORT_LINES}+); let a host react before adding facts")
+    if s["same_speaker"] > config.DIALOGUE_MAX_SAME_SPEAKER:
+        problems.append(f"a host speaks twice in a row {s['same_speaker']} times "
+                        f"(max {config.DIALOGUE_MAX_SAME_SPEAKER}); hand over instead")
+    if s["relay_lines"] > config.DIALOGUE_MAX_RELAY_SHARE * s["lines"]:
+        problems.append(f"{s['relay_lines']} of {s['lines']} lines open with \"And\"/\"Plus\"/\"Also\" and just add "
+                        "the next fact; respond to what the other host said first")
+    return [ReviewIssue(severity=config.DIALOGUE_SEVERITY, target="script", line=None,
+                        issue=f"dialogue: {p}", suggestion="Rework the exchange so the hosts talk to each other.")
+            for p in problems]
