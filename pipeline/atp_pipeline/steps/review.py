@@ -41,8 +41,7 @@ def run(sheet: FactSheet, outline: Outline, draft: Draft) -> ReviewOutput:
 
 
 def review(sheet: FactSheet, outline: Outline, draft: Draft, usage: StepUsage) -> list[ReviewIssue]:
-    recap_targets = {f"recap:{r.match_id}" for r in draft.recaps}
-    targets = {"script", "meta"} | recap_targets
+    targets = {"script", "meta"}
 
     def check(answer: _ReviewAnswer) -> str | None:
         problems = []
@@ -53,11 +52,9 @@ def review(sheet: FactSheet, outline: Outline, draft: Draft, usage: StepUsage) -
                 problems.append(f"issue {i}: script has lines 1-{len(draft.script)}")
         return "\n".join(problems) or None
 
-    recaps = "\n\n".join(f"### recap:{r.match_id}\n\n{r.text}" for r in draft.recaps)
     task = (
         f"# Fact Sheet\n\n{factsheet.render(sheet, write.covered_match_ids(outline))}\n\n"
         f"# Draft\n\n## script\n\n{write.render_script(draft.script)}\n\n"
-        f"## recaps\n\n{recaps}\n\n"
         f"## meta\n\n{draft.meta.model_dump_json(indent=1)}"
     )
     answer = agent.run_agent(

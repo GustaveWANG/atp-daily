@@ -180,11 +180,6 @@ class ScriptLine(BaseModel):
     segment: int | None  # index into Outline.segments; None for intro / quick hits / outro
 
 
-class Recap(BaseModel):
-    match_id: str
-    text: str  # paragraphs separated by blank lines
-
-
 class EpisodeMeta(BaseModel):
     title: str
     headline: str
@@ -194,7 +189,7 @@ class EpisodeMeta(BaseModel):
 
 class ReviewIssue(BaseModel):
     severity: Literal["blocking", "minor"]
-    target: str  # "script", "meta", or "recap:<match_id>"
+    target: str  # "script" or "meta"
     line: int | None  # script line number, when target is "script"
     issue: str
     suggestion: str
@@ -203,7 +198,6 @@ class ReviewIssue(BaseModel):
 class Draft(BaseModel):
     target_date: str
     script: list[ScriptLine]
-    recaps: list[Recap]
     meta: EpisodeMeta
     chapter_titles: list[str]
     format_issues: list[ReviewIssue]  # found by code, not by the reviewer

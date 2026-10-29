@@ -133,7 +133,7 @@ def run_produce(run: Run) -> None:
 
 def _print_draft(draft: Draft) -> None:
     words = sum(len(line.text.split()) for line in draft.script)
-    print(f"write: script {len(draft.script)} lines / {words} words, {len(draft.recaps)} recaps")
+    print(f"write: script {len(draft.script)} lines / {words} words")
     print(f"  dialogue: {write.dialogue_stats(draft.script)}")
     print(f"  title: {draft.meta.title}\n  headline: {draft.meta.headline}")
     for i in draft.format_issues:

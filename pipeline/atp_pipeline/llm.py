@@ -211,7 +211,7 @@ class ClaudeCodeSession(ChatSession):
         ]
         # Every caller ends a session by a submit tool, so a turn with no tool call
         # is never useful. Requiring one stops the model from putting its answer
-        # in `text` instead (it did, for submit_recap, whose argument is also "text").
+        # in `text` instead of submitting it.
         return {
             "type": "object",
             "properties": {

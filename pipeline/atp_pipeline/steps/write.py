@@ -1,7 +1,6 @@
 """Step 4 - WRITE.
 
-Three kinds of writer, run in parallel, each seeing only the facts it needs:
-- recap writer: one web recap per covered match, from that match's facts alone
+Two writers, run in parallel, each seeing only the facts it needs:
 - script writer: the ALEX / SAM script, following the outline
 - meta writer: title, headline, The Read, Bracket Watch
 
@@ -16,19 +15,14 @@ from concurrent.futures import ThreadPoolExecutor
 from pydantic import BaseModel
 
 from .. import agent, config, factsheet
-from ..schemas import Draft, EpisodeMeta, FactSheet, Outline, Recap, ReviewIssue, ScriptLine, StepUsage
+from ..schemas import Draft, EpisodeMeta, FactSheet, Outline, ReviewIssue, ScriptLine, StepUsage
 
 
 class _ScriptAnswer(BaseModel):
     lines: list[ScriptLine]
 
 
-class _RecapAnswer(BaseModel):
-    text: str
-
-
 SUBMIT_SCRIPT = agent.submit_tool("submit_script", "Hand in the full script. Call exactly once.", _ScriptAnswer)
-SUBMIT_RECAP = agent.submit_tool("submit_recap", "Hand in the recap. Call exactly once.", _RecapAnswer)
 SUBMIT_META = agent.submit_tool("submit_meta", "Hand in the episode metadata. Call exactly once.", EpisodeMeta)
 
 
@@ -82,17 +76,6 @@ def write_script(sheet, outline, usage, previous=None, issues=()) -> list[Script
     return answer.lines
 
 
-def write_recap(sheet, match_id, usage, previous=None, issues=()) -> Recap:
-    task = f"Fact Sheet for match {match_id}:\n\n{factsheet.render(sheet, [match_id])}"
-    if previous is not None:
-        task += _revision_note(previous.text, issues)
-    answer = agent.run_agent(
-        model=config.WRITER_MODEL, system=_prompt("recap"), task=task,
-        submit=SUBMIT_RECAP, answer=_RecapAnswer, usage=usage,
-    )
-    return Recap(match_id=match_id, text=answer.text.strip())
-
-
 def write_meta(sheet, outline, usage, previous=None, issues=()) -> EpisodeMeta:
     task = (
         f"Outline:\n\n{outline.model_dump_json(include={'episode_angle', 'segments', 'quick_hits'}, indent=1)}\n\n"
@@ -111,11 +94,8 @@ def write_meta(sheet, outline, usage, previous=None, issues=()) -> EpisodeMeta:
 
 def run(sheet: FactSheet, outline: Outline) -> Draft:
     jobs = {"script": lambda u: write_script(sheet, outline, u), "meta": lambda u: write_meta(sheet, outline, u)}
-    for mid in covered_match_ids(outline):
-        jobs[f"recap:{mid}"] = lambda u, mid=mid: write_recap(sheet, mid, u)
     results, usage = _run_parallel(jobs)
-    return _assemble(sheet, outline, results["script"], [v for k, v in results.items() if k.startswith("recap:")],
-                     results["meta"], usage)
+    return _assemble(sheet, outline, results["script"], results["meta"], usage)
 
 
 def revise(sheet: FactSheet, outline: Outline, draft: Draft, issues: list[ReviewIssue]) -> Draft:
@@ -124,25 +104,16 @@ def revise(sheet: FactSheet, outline: Outline, draft: Draft, issues: list[Review
     for issue in issues:
         by_target.setdefault(issue.target, []).append(issue)
     to_fix = {t for t, items in by_target.items() if any(i.severity == "blocking" for i in items)}
-    recaps = {r.match_id: r for r in draft.recaps}
 
     jobs = {}
     if "script" in to_fix:
         jobs["script"] = lambda u: write_script(sheet, outline, u, draft.script, by_target["script"])
     if "meta" in to_fix:
         jobs["meta"] = lambda u: write_meta(sheet, outline, u, draft.meta, by_target["meta"])
-    for target in to_fix:
-        mid = target.removeprefix("recap:")
-        if target.startswith("recap:") and mid in recaps:
-            jobs[target] = lambda u, mid=mid, t=target: write_recap(sheet, mid, u, recaps[mid], by_target[t])
     results, usage = _run_parallel(jobs)
 
-    for target, value in results.items():
-        if target.startswith("recap:"):
-            recaps[value.match_id] = value
     usage.add(draft.usage)
-    return _assemble(sheet, outline, results.get("script", draft.script), list(recaps.values()),
-                     results.get("meta", draft.meta), usage)
+    return _assemble(sheet, outline, results.get("script", draft.script), results.get("meta", draft.meta), usage)
 
 
 def _run_parallel(jobs: dict) -> tuple[dict, StepUsage]:
@@ -157,16 +128,13 @@ def _run_parallel(jobs: dict) -> tuple[dict, StepUsage]:
     return results, total
 
 
-def _assemble(sheet, outline, script, recaps, meta, usage) -> Draft:
-    order = {mid: i for i, mid in enumerate(covered_match_ids(outline))}
-    recaps = sorted(recaps, key=lambda r: order.get(r.match_id, len(order)))
+def _assemble(sheet, outline, script, meta, usage) -> Draft:
     return Draft(
         target_date=sheet.target_date,
         script=script,
-        recaps=recaps,
         meta=meta,
         chapter_titles=[seg.title for seg in outline.segments],
-        format_issues=check_format(script, recaps, meta, len(outline.segments), thin_match_ids(sheet)),
+        format_issues=check_format(script, meta, len(outline.segments)),
         usage=usage,
     )
 
@@ -180,22 +148,13 @@ UNSPEAKABLE = [
     (re.compile(r"https?://|www\."), "URL"),
     (re.compile(r"[\U0001F300-\U0001FAFF☀-➿]"), "emoji"),
 ]
-MARKDOWN = re.compile(r"^\s*([#*-]|\d+\.)\s|\*\*")
 
 
 def _blocking(target: str, issue: str, line: int | None = None) -> ReviewIssue:
     return ReviewIssue(severity="blocking", target=target, line=line, issue=issue, suggestion="Fix the format.")
 
 
-def thin_match_ids(sheet: FactSheet) -> set[str]:
-    """Matches with neither stats nor articles: only a score to report, so
-    their recap is held to a shorter minimum instead of padded with guesses."""
-    with_articles = {mid for a in sheet.articles for mid in a.match_ids}
-    return {m.id for m in sheet.matches if m.stats is None and m.id not in with_articles}
-
-
-def check_format(script: list[ScriptLine], recaps: list[Recap], meta: EpisodeMeta, n_segments: int,
-                 thin: set[str] = frozenset()) -> list[ReviewIssue]:
+def check_format(script: list[ScriptLine], meta: EpisodeMeta, n_segments: int) -> list[ReviewIssue]:
     issues = []
     words = 0
     for i, line in enumerate(script, 1):
@@ -218,16 +177,6 @@ def check_format(script: list[ScriptLine], recaps: list[Recap], meta: EpisodeMet
     if missing:
         issues.append(_blocking("script", f"outline segments {sorted(missing)} have no lines"))
     issues += check_dialogue(script)
-
-    for r in recaps:
-        n = len(r.text.split())
-        if r.match_id in thin:
-            if not 30 <= n <= 150:
-                issues.append(_blocking(f"recap:{r.match_id}", f"recap is {n} words; aim for 40-100 (score only)"))
-        elif not 80 <= n <= 350:
-            issues.append(_blocking(f"recap:{r.match_id}", f"recap is {n} words; aim for 120-250"))
-        if any(MARKDOWN.search(p) for p in r.text.splitlines()):
-            issues.append(_blocking(f"recap:{r.match_id}", "recap contains markdown; plain text only"))
 
     if len(meta.title) > 80:
         issues.append(_blocking("meta", f"title is {len(meta.title)} characters (max 70)"))
