@@ -66,6 +66,8 @@ class Article(BaseModel):
     match_ids: list[str]
     key_points: list[str]
     notable_quote: str | None = None
+    # match_report: about yesterday's matches. background: a player's news, form or history.
+    kind: Literal["match_report", "background"] = "match_report"
 
 
 class SourceMeta(BaseModel):

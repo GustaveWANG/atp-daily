@@ -47,9 +47,11 @@ MAIN_TOUR_RANKS = (2, 3, 4, 5, 7)
 
 # Caps on the research agent's tool use per run.
 MAX_STATS_CALLS = 10
-MAX_WEB_SEARCHES = 8
-MAX_WEB_FETCHES = 10
-MAX_AGENT_TURNS = 20
+MAX_WEB_SEARCHES = 14
+MAX_WEB_FETCHES = 16
+MAX_AGENT_TURNS = 30
+# How far back a "background" search (player news, form, history) looks.
+BACKGROUND_SEARCH_DAYS = 45
 
 # Tavily search settings. basic = 1 credit per search, advanced = 2.
 TAVILY_SEARCH_DEPTH = os.environ.get("TAVILY_SEARCH_DEPTH", "basic")
@@ -90,3 +92,6 @@ SCRIPT_MIN_WORDS = 700
 SCRIPT_MAX_WORDS = 1600
 SCRIPT_MAX_LINE_WORDS = 90
 MAX_REVISIONS = 2
+
+# EVALS: the judge grading a step's output.
+EVAL_MODEL = os.environ.get("EVAL_MODEL", "anthropic:claude-opus-5-5")

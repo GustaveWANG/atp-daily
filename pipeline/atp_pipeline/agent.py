@@ -37,6 +37,30 @@ def normalize(text: str) -> str:
     return re.sub(r"\s+", " ", text).strip().lower()
 
 
+# Punctuation and quote marks a model may add or swap at a passage's edges, e.g.
+# ending on "." where the page has '," he said'. The words inside must still match.
+# "!" and "?" are kept: they change what the passage says.
+QUOTE_EDGES = " \t\n.,;:\"'“”‘’«»"
+
+
+def appears_in(passage: str, page: str) -> bool:
+    """True if a quote or excerpt appears verbatim in the page. It may join
+    passages with "..." (skipping e.g. '," he said. "'); then each passage must
+    appear verbatim, in the same order as in the page."""
+    text = normalize(page)
+    pos = 0
+    # NFKC turns "…" into "...".
+    for part in normalize(passage).split("..."):
+        part = part.strip(QUOTE_EDGES)
+        if not part:
+            continue
+        found = text.find(part, pos)
+        if found < 0:
+            return False
+        pos = found + len(part)
+    return True
+
+
 def strict_schema(model: type[BaseModel]) -> dict:
     """JSON Schema for a pydantic model, in the form strict tool use accepts:
     no $refs, every property required, no extra properties."""

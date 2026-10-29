@@ -8,13 +8,12 @@ are checked against what it actually saw before they are returned.
 """
 
 import json
-import re
-import unicodedata
 from datetime import date, timedelta
+from typing import Literal
 
 from pydantic import BaseModel, ValidationError
 
-from .. import config, llm
+from .. import agent, config, llm
 from ..schemas import Article, DiscoverOutput, Match, SourceMeta
 from ..tools.tavily import TavilyClient, TavilyError
 from ..tools.tennis_api import TennisApiClient, to_match, to_match_stats
@@ -37,14 +36,22 @@ GET_MATCH_STATS_TOOL = llm.Tool(
 WEB_SEARCH_TOOL = llm.Tool(
     name="web_search",
     description=(
-        "Search the web. Results are limited to pages published from the day before the "
-        "matches to two days after. Returns title, url, published date and a short snippet "
-        "for each result. Snippets are not enough to cite; open a page with web_fetch first."
+        "Search the web. With window 'match', results are limited to pages published from the "
+        "day before the matches to two days after; with 'background', from several weeks before. "
+        "Returns title, url, published date and a short snippet for each result. Snippets are "
+        "not enough to cite; open a page with web_fetch first."
     ),
     parameters={
         "type": "object",
-        "properties": {"query": {"type": "string", "description": "Search query, e.g. player names and tournament."}},
-        "required": ["query"],
+        "properties": {
+            "query": {"type": "string", "description": "Search query, e.g. player names and tournament."},
+            "window": {
+                "type": "string",
+                "enum": ["match", "background"],
+                "description": "'match' for reports on yesterday's matches, 'background' for a player's news, form or history.",
+            },
+        },
+        "required": ["query", "window"],
         "additionalProperties": False,
     },
 )
@@ -93,8 +100,9 @@ SUBMIT_RESEARCH_TOOL = llm.Tool(
                             "type": ["string", "null"],
                             "description": "One quote copied exactly from the article, or null.",
                         },
+                        "kind": {"type": "string", "enum": ["match_report", "background"]},
                     },
-                    "required": ["url", "source", "title", "published_at", "match_ids", "key_points", "notable_quote"],
+                    "required": ["url", "source", "title", "published_at", "match_ids", "key_points", "notable_quote", "kind"],
                     "additionalProperties": False,
                 },
             },
@@ -120,6 +128,7 @@ class _RawArticle(BaseModel):
     match_ids: list[str]
     key_points: list[str]
     notable_quote: str | None = None
+    kind: Literal["match_report", "background"] = "match_report"
 
 
 class _Submission(BaseModel):
@@ -152,9 +161,9 @@ def run(
     search = search or TavilyClient()
     system = (config.PROMPTS_DIR / "research.md").read_text()
     session = open_session(config.RESEARCH_MODEL, system, TOOLS, config.RESEARCH_EFFORT)
-    agent = _ResearchAgent(day, matches, tennis, search, session, meta)
-    submission = agent.run()
-    articles = _accept_submission(submission, matches, agent, meta)
+    research = _ResearchAgent(day, matches, tennis, search, session, meta)
+    submission = research.run()
+    articles = _accept_submission(submission, matches, research, meta)
 
     # Selected matches always get stats, whether or not the agent asked for them.
     for m in matches:
@@ -183,7 +192,11 @@ class _ResearchAgent:
         self.meta = meta
         self.stats_calls = 0
         d = date.fromisoformat(day)
-        self.search_window = ((d - timedelta(days=1)).isoformat(), (d + timedelta(days=2)).isoformat())
+        end = (d + timedelta(days=2)).isoformat()
+        self.search_windows = {
+            "match": ((d - timedelta(days=1)).isoformat(), end),
+            "background": ((d - timedelta(days=config.BACKGROUND_SEARCH_DAYS)).isoformat(), end),
+        }
         self.seen_urls: set[str] = set()  # every URL returned by web_search
         self.fetched: dict[str, str] = {}  # url -> page text the model read
 
@@ -256,7 +269,7 @@ class _ResearchAgent:
             if call.name == "get_match_stats":
                 return result(*self._match_stats(str(args.get("match_id", "")))), None
             if call.name == "web_search":
-                return result(*self._web_search(str(args.get("query", "")))), None
+                return result(*self._web_search(str(args.get("query", "")), str(args.get("window", "match")))), None
             if call.name == "web_fetch":
                 return result(*self._web_fetch(str(args.get("url", "")))), None
         except TavilyError as e:
@@ -280,11 +293,13 @@ class _ResearchAgent:
             return "The data source has no stats for this match.", False
         return match.stats.model_dump_json(), False
 
-    def _web_search(self, query: str) -> tuple[str, bool]:
+    def _web_search(self, query: str, window: str) -> tuple[str, bool]:
+        if window not in self.search_windows:
+            return f"Unknown window {window!r}; use 'match' or 'background'.", True
         if self.meta.web_searches >= config.MAX_WEB_SEARCHES:
             return "Search limit reached for this run.", True
         self.meta.web_searches += 1
-        hits = self.search.search(query, *self.search_window)
+        hits = self.search.search(query, *self.search_windows[window])
         self.seen_urls.update(h["url"] for h in hits)
         return json.dumps([
             {
@@ -310,23 +325,11 @@ class _ResearchAgent:
         return text, False
 
 
-def _normalize(text: str) -> str:
-    text = unicodedata.normalize("NFKC", text)
-    text = text.replace("’", "'").replace("‘", "'").replace("“", '"').replace("”", '"')
-    return re.sub(r"\s+", " ", text).strip().lower()
-
-
-# Punctuation and quote marks a model may add or swap at a quote's edges, e.g.
-# ending on "." where the article has '," he said'. The words inside must still match.
-# "!" and "?" are kept: they change what the quote says.
-_QUOTE_EDGES = " \t\n.,;:\"'“”‘’«»"
-
-
 def _trim_quote(quote: str) -> str:
-    return quote.strip(_QUOTE_EDGES)
+    return quote.strip(agent.QUOTE_EDGES)
 
 
-def _accept_submission(submission: _Submission, matches: list[Match], agent: _ResearchAgent, meta: SourceMeta) -> list[Article]:
+def _accept_submission(submission: _Submission, matches: list[Match], research: _ResearchAgent, meta: SourceMeta) -> list[Article]:
     """Apply the agent's picks and keep only articles and quotes we can trace."""
     by_id = {m.id: m for m in matches}
     for pick in submission.selected_matches:
@@ -342,7 +345,7 @@ def _accept_submission(submission: _Submission, matches: list[Match], agent: _Re
         if any(a.url == url for a in articles):
             meta.warnings.append(f"duplicate article, kept the first: {url}")
             continue
-        if url not in agent.fetched:
+        if url not in research.fetched:
             meta.warnings.append(f"article not opened with web_fetch, dropped: {url}")
             continue
         match_ids = [mid for mid in raw.match_ids if mid in by_id]
@@ -352,7 +355,7 @@ def _accept_submission(submission: _Submission, matches: list[Match], agent: _Re
             meta.warnings.append(f"article {url} is about none of the day's matches, dropped")
             continue
         quote = _trim_quote(raw.notable_quote or "") or None
-        if quote and _normalize(quote) not in _normalize(agent.fetched[url]):
+        if quote and not agent.appears_in(quote, research.fetched[url]):
             meta.warnings.append(f"quote not found verbatim in {url}, removed: {quote[:80]!r}")
             quote = None
         articles.append(Article(
@@ -364,5 +367,6 @@ def _accept_submission(submission: _Submission, matches: list[Match], agent: _Re
             match_ids=match_ids,
             key_points=raw.key_points,
             notable_quote=quote,
+            kind=raw.kind,
         ))
     return articles

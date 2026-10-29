@@ -37,7 +37,7 @@ def render(sheet: FactSheet, match_ids: list[str] | None = None) -> str:
         "date": sheet.target_date,
         "matches": [match_facts(m) for m in sheet.matches if m.id in keep],
         "articles": [
-            a.model_dump(include={"id", "source", "title", "url", "match_ids", "key_points", "notable_quote"})
+            a.model_dump(include={"id", "source", "title", "url", "kind", "match_ids", "key_points", "notable_quote"})
             for a in sheet.articles if keep & set(a.match_ids)
         ],
         "outliers": [

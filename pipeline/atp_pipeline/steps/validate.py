@@ -266,8 +266,8 @@ def _verify(day, matches, outliers, usage, search, open_session) -> None:
             page = web.fetched.get(ev.url)
             if page is None:
                 usage.warnings.append(f"{outlier.id}: evidence page was never opened, dropped: {ev.url}")
-            elif agent.normalize(ev.excerpt) not in agent.normalize(page):
-                usage.warnings.append(f"{outlier.id}: excerpt not found on {ev.url}, dropped: {ev.excerpt[:80]!r}")
+            elif not agent.appears_in(ev.excerpt, page):
+                usage.warnings.append(f"{outlier.id}: excerpt not found on {ev.url}, dropped: {ev.excerpt!r}")
             else:
                 evidence.append(ev)
         if check.status == "verified" and evidence:
