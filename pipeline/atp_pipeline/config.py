@@ -36,13 +36,15 @@ def require(name: str) -> str:
 
 
 # Models per role, as "provider:model" (see llm.py), e.g.
-#   deepseek:deepseek-v4-pro   deepseek:deepseek-flash   anthropic:claude-sonnet-5-5
+#   claude-code:sonnet   claude-code:opus   deepseek:deepseek-v4-pro   anthropic:claude-sonnet-5-5
+# Every role defaults to claude-code, which uses the Claude subscription the
+# `claude` CLI is logged in to, so a run costs no API money.
 # Override with an env var or a line in .env to compare models.
 # Per model call. Reasoning tokens count toward it, and DeepSeek can spend
 # 20k+ thinking before writing a full script.
 MAX_OUTPUT_TOKENS = int(os.environ.get("MAX_OUTPUT_TOKENS", "64000"))
 
-RESEARCH_MODEL = os.environ.get("RESEARCH_MODEL", "deepseek:deepseek-v4-pro")
+RESEARCH_MODEL = os.environ.get("RESEARCH_MODEL", "claude-code:sonnet")
 RESEARCH_EFFORT = os.environ.get("RESEARCH_EFFORT", "high")  # low | medium | high | max
 
 # TourRank ids: 2 main tour (250/500), 3 Masters, 4 Grand Slam, 5 Davis Cup,
@@ -83,13 +85,13 @@ TAVILY_EXCLUDE_DOMAINS = [
 ]
 
 # Models for the later steps, same "provider:model" format as RESEARCH_MODEL.
-# The reviewer defaults to a different vendor than the writers, so the two
-# don't share blind spots.
+# The reviewer defaults to a different model than the writers, so the two
+# share fewer blind spots.
 VERIFY_MODEL = os.environ.get("VERIFY_MODEL") or RESEARCH_MODEL
-EDITOR_MODEL = os.environ.get("EDITOR_MODEL", "deepseek:deepseek-v4-pro")
-WRITER_MODEL = os.environ.get("WRITER_MODEL", "deepseek:deepseek-v4-pro")
-META_MODEL = os.environ.get("META_MODEL", "deepseek:deepseek-flash")
-REVIEWER_MODEL = os.environ.get("REVIEWER_MODEL", "anthropic:claude-sonnet-5-5")
+EDITOR_MODEL = os.environ.get("EDITOR_MODEL", "claude-code:sonnet")
+WRITER_MODEL = os.environ.get("WRITER_MODEL", "claude-code:sonnet")
+META_MODEL = os.environ.get("META_MODEL", "claude-code:haiku")
+REVIEWER_MODEL = os.environ.get("REVIEWER_MODEL", "claude-code:opus")
 AGENT_EFFORT = os.environ.get("AGENT_EFFORT", "high")
 
 # VALIDATE: rare-but-valid values that get flagged as outliers and verified.
@@ -124,7 +126,7 @@ NUMBERS_MAX_PER_100_WORDS = 6
 NUMBERS_MAX_PERCENT = 3
 
 # EVALS: the judge grading a step's output.
-EVAL_MODEL = os.environ.get("EVAL_MODEL", "anthropic:claude-sonnet-5-5")
+EVAL_MODEL = os.environ.get("EVAL_MODEL", "claude-code:sonnet")
 
 # PRODUCE: ElevenLabs TTS, one request per script line.
 # multilingual_v2 is ElevenLabs' steadiest model for long-form and takes the

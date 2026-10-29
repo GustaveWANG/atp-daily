@@ -1,8 +1,11 @@
 """One way to talk to any model, so pipeline steps never import a vendor SDK.
 
-Pick a model with a "provider:model" string, e.g. "deepseek:deepseek-v4-pro"
-or "anthropic:claude-opus-5-5". To add a vendor with an OpenAI-compatible API,
-add one line to OPENAI_COMPATIBLE.
+Pick a model with a "provider:model" string, e.g. "claude-code:sonnet",
+"deepseek:deepseek-v4-pro" or "anthropic:claude-opus-5-5". To add a vendor with
+an OpenAI-compatible API, add one line to OPENAI_COMPATIBLE.
+
+"claude-code" runs the Claude Code CLI (`claude -p`), so calls use the Claude
+subscription it is logged in to instead of an API key.
 
 Each session keeps the conversation in its vendor's own message format. Turning
 it into a common format and back would drop things the vendors require us to
@@ -10,6 +13,10 @@ send back unchanged (Claude's thinking blocks, DeepSeek's reasoning_content).
 """
 
 import json
+import os
+import subprocess
+import tempfile
+import uuid
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Literal
@@ -71,6 +78,8 @@ class ChatSession(ABC):
 def open_session(model: str, system: str, tools: list[Tool], effort: str = "high") -> ChatSession:
     """effort: low | medium | high | max, mapped to each vendor's setting."""
     provider, _, model_id = model.partition(":")
+    if provider == "claude-code":
+        return ClaudeCodeSession(model_id, system, tools, effort)
     if provider == "anthropic":
         return AnthropicSession(model_id, system, tools, effort)
     if provider in OPENAI_COMPATIBLE:
@@ -138,6 +147,136 @@ class AnthropicSession(ChatSession):
         turn.stop = self.STOPS.get(response.stop_reason, "other")
         turn.stop_detail = str(response.stop_details) if response.stop_reason == "refusal" else response.stop_reason
         return turn
+
+
+# -------------------------------------------------------------- Claude Code
+
+
+class ClaudeCodeError(RuntimeError):
+    pass
+
+
+class ClaudeCodeSession(ChatSession):
+    """Talks to Claude through `claude -p`, billed to the logged-in subscription.
+
+    The CLI runs its own tool loop and never hands tool calls back, so tools are
+    not given to it. Instead every reply must be JSON (--json-schema) listing the
+    tool calls the model wants; we run them here and send the results as the
+    next message, resuming the same CLI session so earlier turns stay cached.
+    """
+
+    # Keys that would make the CLI bill an API account instead of the subscription.
+    API_KEY_ENV = ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN")
+    TIMEOUT_S = 20 * 60
+
+    def __init__(self, model: str, system: str, tools: list[Tool], effort: str):
+        self.model = model
+        self.effort = effort
+        self.tools = tools
+        self.session_id = str(uuid.uuid4())
+        self.started = False
+        self.pending: list[str] = []
+        # The CLI keys saved sessions by working directory, so --resume needs the
+        # same one each call; an empty one also keeps project files out of context.
+        self.workdir = tempfile.mkdtemp(prefix="claude-code-session-")
+        self.system_file = os.path.join(self.workdir, "system.md")
+        with open(self.system_file, "w") as f:
+            f.write(system + "\n\n" + self._tool_protocol())
+        self.schema = json.dumps(self._reply_schema())
+
+    def _tool_protocol(self) -> str:
+        if not self.tools:
+            return ""
+        listing = "\n".join(
+            f"- {t.name}: {t.description}\n  arguments schema: {json.dumps(t.parameters)}" for t in self.tools
+        )
+        return (
+            "# How to call tools\n\n"
+            "You reply with JSON: `text` for anything you want to say, `tool_calls` for the tools to "
+            "call now. To call a tool, add {\"name\": ..., \"arguments\": {...}} to `tool_calls`; you "
+            "may call several at once. Their results come back in the next message. When something "
+            "says to call a tool, it means adding it to `tool_calls`.\n\n"
+            f"Tools:\n{listing}"
+        )
+
+    def _reply_schema(self) -> dict:
+        calls = [
+            {
+                "type": "object",
+                "properties": {"name": {"const": t.name}, "arguments": t.parameters},
+                "required": ["name", "arguments"],
+                "additionalProperties": False,
+            }
+            for t in self.tools
+        ]
+        return {
+            "type": "object",
+            "properties": {
+                "text": {"type": "string"},
+                "tool_calls": {"type": "array", "items": {"anyOf": calls}} if calls else {"type": "array", "maxItems": 0},
+            },
+            "required": ["text", "tool_calls"],
+            "additionalProperties": False,
+        }
+
+    def add_user(self, text: str) -> None:
+        self.pending.append(text)
+
+    def add_tool_results(self, results: list[ToolResult]) -> None:
+        self.pending.append("Tool results:\n\n" + json.dumps(
+            [{"call_id": r.call_id, "is_error": r.is_error, "content": r.content} for r in results],
+            ensure_ascii=False, indent=1,
+        ))
+
+    def step(self) -> Turn:
+        prompt = "\n\n".join(self.pending)
+        self.pending = []
+        cmd = [
+            "claude", "-p",
+            "--output-format", "json",
+            "--model", self.model,
+            "--effort", self.effort,
+            "--system-prompt-file", self.system_file,
+            "--json-schema", self.schema,
+            "--tools", "",
+            "--strict-mcp-config",
+            "--safe-mode",
+            "--resume" if self.started else "--session-id", self.session_id,
+        ]
+        env = {k: v for k, v in os.environ.items() if k not in self.API_KEY_ENV}
+        # The prompt goes in on stdin: tool results can be larger than one argument may be.
+        proc = subprocess.run(cmd, input=prompt, capture_output=True, text=True,
+                              cwd=self.workdir, env=env, timeout=self.TIMEOUT_S)
+        self.started = True
+        try:
+            data = json.loads(proc.stdout)
+        except json.JSONDecodeError:
+            raise ClaudeCodeError(f"claude exited {proc.returncode}: {(proc.stderr or proc.stdout)[:500]}")
+        if data.get("is_error"):
+            raise ClaudeCodeError(f"claude: {data.get('result') or data.get('subtype')}")
+
+        reply = data.get("structured_output")
+        if reply is None:
+            try:
+                reply = json.loads(data.get("result") or "")
+            except json.JSONDecodeError:
+                reply = {"text": data.get("result") or "", "tool_calls": []}
+        u = data.get("usage") or {}
+        calls = [
+            ToolCall(id=f"call_{uuid.uuid4().hex[:8]}", name=c.get("name", ""),
+                     arguments=c.get("arguments") if isinstance(c.get("arguments"), dict) else None,
+                     raw_arguments=json.dumps(c.get("arguments")))
+            for c in reply.get("tool_calls") or []
+        ]
+        return Turn(
+            text=reply.get("text") or "",
+            tool_calls=calls,
+            stop="tool_calls" if calls else "end",
+            stop_detail=data.get("stop_reason"),
+            input_tokens=(u.get("input_tokens") or 0) + (u.get("cache_read_input_tokens") or 0)
+            + (u.get("cache_creation_input_tokens") or 0),
+            output_tokens=u.get("output_tokens") or 0,
+        )
 
 
 # -------------------------------------------------------- OpenAI-compatible
