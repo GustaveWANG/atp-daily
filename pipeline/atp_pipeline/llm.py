@@ -209,11 +209,15 @@ class ClaudeCodeSession(ChatSession):
             }
             for t in self.tools
         ]
+        # Every caller ends a session by a submit tool, so a turn with no tool call
+        # is never useful. Requiring one stops the model from putting its answer
+        # in `text` instead (it did, for submit_recap, whose argument is also "text").
         return {
             "type": "object",
             "properties": {
                 "text": {"type": "string"},
-                "tool_calls": {"type": "array", "items": {"anyOf": calls}} if calls else {"type": "array", "maxItems": 0},
+                "tool_calls": {"type": "array", "items": {"anyOf": calls}, "minItems": 1}
+                if calls else {"type": "array", "maxItems": 0},
             },
             "required": ["text", "tool_calls"],
             "additionalProperties": False,
