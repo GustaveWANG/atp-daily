@@ -4,7 +4,8 @@ An independent reviewer agent (its own prompt and, by default, a different
 vendor than the writers) checks the draft against the Fact Sheet and returns
 structured issues. Together with the code's format issues, any blocking issue
 sends the flagged parts back to the writers (write.revise). After
-MAX_REVISIONS rewrites that still don't pass, the run stops as needs_review.
+MAX_REVISIONS rewrites that still don't pass, the status is needs_review and
+the last revision goes on to PRODUCE anyway, with a warning.
 """
 
 from pydantic import BaseModel

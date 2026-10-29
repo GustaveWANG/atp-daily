@@ -101,7 +101,7 @@ def check_line(text: str, similarity: float, seconds: float, silences: list[tupl
     if similarity < config.QA_MIN_SIMILARITY:
         issues.append(f"transcript matches the script only {similarity:.0%}")
     words = len(_words(text))
-    if words >= 4 and seconds > 0:
+    if words >= config.QA_RATE_MIN_WORDS and seconds > 0:
         rate = words / seconds
         if rate < config.QA_MIN_WORDS_PER_SEC:
             issues.append(f"too slow: {rate:.1f} words/s")

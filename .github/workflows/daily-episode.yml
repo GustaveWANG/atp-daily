@@ -1,0 +1,88 @@
+# Makes yesterday's episode every morning and publishes it to Supabase, where
+# the website reads it.
+#
+# Secrets (Settings > Secrets and variables > Actions):
+#   CLAUDE_CODE_OAUTH_TOKEN    from `claude setup-token`; model calls run on the Claude subscription
+#   RAPIDAPI_KEY, TAVILY_API_KEY, ELEVENLABS_API_KEY
+#   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
+#
+# Run it by hand from the Actions tab (optionally for another date). Each run's
+# data/runs/<date>/ folder is kept as an artifact for a while, to read or listen to.
+
+name: Daily episode
+
+on:
+  schedule:
+    # 06:30 UTC: late matches in the Americas are over, and it's morning in Europe.
+    - cron: "30 6 * * *"
+  workflow_dispatch:
+    inputs:
+      date:
+        description: "Match day, YYYY-MM-DD (default: yesterday, UTC)"
+        required: false
+      publish_needs_review:
+        description: "Publish even if some audio lines fail QA"
+        type: boolean
+        default: false
+
+concurrency:
+  group: daily-episode
+  cancel-in-progress: false
+
+jobs:
+  episode:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    defaults:
+      run:
+        working-directory: pipeline
+    env:
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+      RAPIDAPI_KEY: ${{ secrets.RAPIDAPI_KEY }}
+      TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
+      ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      PUBLISH_NEEDS_REVIEW: ${{ inputs.publish_needs_review && '1' || '' }}
+      PYTHONUNBUFFERED: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install ffmpeg and Claude Code
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q ffmpeg
+          npm install -g @anthropic-ai/claude-code
+          claude --version
+
+      - name: Pick the date
+        id: day
+        env:
+          DATE_INPUT: ${{ inputs.date }}
+        run: |
+          d="${DATE_INPUT:-$(date -u -d yesterday +%F)}"
+          [[ "$d" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] || { echo "not a YYYY-MM-DD date: $d"; exit 1; }
+          echo "date=$d" >> "$GITHUB_OUTPUT"
+
+      - name: Make and publish the episode
+        run: >
+          uv run python scripts/run_step.py
+          discover validate plan write review produce publish
+          --date ${{ steps.day.outputs.date }}
+
+      - name: Keep the run folder
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: run-${{ steps.day.outputs.date }}
+          path: pipeline/data/runs/${{ steps.day.outputs.date }}/
+          if-no-files-found: ignore
+          retention-days: 14

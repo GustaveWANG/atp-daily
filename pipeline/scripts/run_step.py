@@ -4,6 +4,7 @@ Usage:
     uv run python scripts/run_step.py discover [--date YYYY-MM-DD]
     uv run python scripts/run_step.py validate plan write review --date 2026-10-27
     uv run python scripts/run_step.py produce --date 2026-10-27   # audio, needs ffmpeg
+    uv run python scripts/run_step.py publish --date 2026-10-27   # to Supabase, for the website
 
 --date defaults to yesterday (UTC). Each step reads the earlier steps' output
 from data/runs/<date>/ and writes its own to data/runs/<date>/<step>.json, so
@@ -11,16 +12,17 @@ any step can be rerun on its own. --run <name> uses data/runs/<name>/ instead.
 """
 
 import argparse
+import os
 import sys
 from datetime import datetime, timedelta, timezone
 
 from pydantic import BaseModel
 
 from atp_pipeline import config
-from atp_pipeline.schemas import DiscoverOutput, Draft, FactSheet, Outline, ReviewOutput, StepUsage
-from atp_pipeline.steps import discover, plan, produce, review, validate, write
+from atp_pipeline.schemas import DiscoverOutput, Draft, FactSheet, Outline, ProduceOutput, ReviewOutput, StepUsage
+from atp_pipeline.steps import discover, plan, produce, publish, review, validate, write
 
-STEPS = ["discover", "validate", "plan", "write", "review", "produce"]
+STEPS = ["discover", "validate", "plan", "write", "review", "produce", "publish"]
 
 
 class Run:
@@ -78,8 +80,10 @@ def run_validate(run: Run) -> None:
 def run_plan(run: Run) -> None:
     sheet = run.load("validate", FactSheet)
     if sheet.no_show:
+        # Not an error: some days have no main-tour matches. Exiting also skips
+        # the later steps when they were asked for in the same command.
         print("plan: NO_SHOW, nothing to plan")
-        return
+        sys.exit(0)
     outline = plan.run(sheet)
     print(f"plan: {outline.episode_angle}")
     for i, seg in enumerate(outline.segments):
@@ -114,8 +118,10 @@ def run_review(run: Run) -> None:
 def run_produce(run: Run) -> None:
     result = run.load("review", ReviewOutput)
     if result.status != "passed":
-        print("produce: the script has not passed review, no audio made")
-        return
+        # The last revision is usually close; a day with no episode is worse.
+        blocking = sum(i.severity == "blocking" for i in result.rounds[-1].issues)
+        note = f"script still has {blocking} blocking review issue(s) after the last revision; using it anyway"
+        print(f"::warning::{note}" if os.environ.get("GITHUB_ACTIONS") else f"produce: {note}")
     output = produce.run(result, run.dir / "audio")
     failed = [line for line in output.lines if line.issues]
     rerolled = sum(1 for line in output.lines if line.attempts > 1)
@@ -129,6 +135,12 @@ def run_produce(run: Run) -> None:
           f"{u.stt_requests} STT requests / {u.stt_seconds:g}s, {u.cache_hits} cache hits")
     print(f"  audio: {run.dir / output.audio_file}")
     run.save("produce", output)
+
+
+def run_publish(run: Run) -> None:
+    row = publish.run(run.load("review", ReviewOutput), run.load("produce", ProduceOutput), run.dir)
+    print(f"publish: {row['date']} {row['title']!r}, {row['audio_duration'] / 60:.1f} min")
+    print(f"  audio: {row['audio_url']}")
 
 
 def _print_draft(draft: Draft) -> None:

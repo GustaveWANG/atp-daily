@@ -130,13 +130,13 @@ EVAL_MODEL = os.environ.get("EVAL_MODEL", "claude-code:sonnet")
 
 # PRODUCE: ElevenLabs TTS, one request per script line.
 # multilingual_v2 is ElevenLabs' steadiest model for long-form and takes the
-# neighbouring lines as context. Voice ids are from the Voice Library (the old
-# default voices expire at the end of 2026); override in .env to try others.
+# neighbouring lines as context. Voice ids are from the Voice Library; override
+# in .env to try others.
 TTS_MODEL = os.environ.get("TTS_MODEL", "eleven_multilingual_v2")
 TTS_OUTPUT_FORMAT = "mp3_44100_128"
 TTS_VOICES = {
-    "ALEX": os.environ.get("ELEVENLABS_VOICE_ALEX", "g7LVvkPWALzPxOQbF6OE"),  # Jade - Upbeat and Natural
-    "SAM": os.environ.get("ELEVENLABS_VOICE_SAM", "gOupLcAkjEnguROwi4oS"),  # Darian - Warm Grounded Storyteller
+    "ALEX": os.environ.get("ELEVENLABS_VOICE_ALEX", "OZxMHsGaBmV5pjMIDIn0"),  # Amy
+    "SAM": os.environ.get("ELEVENLABS_VOICE_SAM", "7EzWGsX10sAS4c9m9cPf"),  # Jack
 }
 TTS_VOICE_SETTINGS = {"stability": 0.45, "similarity_boost": 0.75, "style": 0.15, "use_speaker_boost": True}
 # Concurrent requests allowed for multilingual_v2: Free 2, Starter 3, Creator 5, Pro 10.
@@ -148,6 +148,7 @@ STT_MODEL = "scribe_v2"
 QA_MIN_SIMILARITY = 0.85  # word-level match, transcript vs script line
 QA_MIN_WORDS_PER_SEC = 1.4  # slower usually means stalls or garbage
 QA_MAX_WORDS_PER_SEC = 4.2  # faster usually means skipped words
+QA_RATE_MIN_WORDS = 10  # short lines are read fast or slow naturally; the transcript check covers them
 QA_MAX_SILENCE = 1.2  # seconds of silence allowed inside a line
 QA_SILENCE_DB = -45
 
@@ -157,3 +158,9 @@ SEGMENT_GAP = 0.8  # between segments (and around the intro / outro)
 AUDIO_SAMPLE_RATE = 44100
 AUDIO_BITRATE = "128k"
 AUDIO_LOUDNESS_LUFS = -16  # podcast standard
+
+# PUBLISH: Supabase, which the website reads. SUPABASE_URL and
+# SUPABASE_SERVICE_ROLE_KEY come from the environment or .env.
+PUBLISH_BUCKET = "audio"  # public Storage bucket; files go to episodes/<date>.mp3
+# Publish even when some lines still fail audio QA (produce status needs_review).
+PUBLISH_NEEDS_REVIEW = os.environ.get("PUBLISH_NEEDS_REVIEW", "") not in ("", "0", "false")
