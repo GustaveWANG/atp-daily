@@ -6,8 +6,14 @@
 #   RAPIDAPI_KEY, TAVILY_API_KEY, ELEVENLABS_API_KEY
 #   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 #
-# Run it by hand from the Actions tab (optionally for another date). Each run's
-# data/runs/<date>/ folder is kept as an artifact for a while, to read or listen to.
+# GitHub sometimes skips or drops scheduled runs, so there are backup times
+# later in the morning. A scheduled run first checks Supabase and stops if the
+# day is already published; a failed or skipped earlier run gets another go.
+#
+# Run it by hand from the Actions tab (optionally for another date). A manual run
+# always makes the episode, re-publishing the day if it's already there. Each
+# run's data/runs/<date>/ folder is kept as an artifact for a while, to read or
+# listen to.
 
 name: Daily episode
 
@@ -15,6 +21,9 @@ on:
   schedule:
     # 06:30 UTC: late matches in the Americas are over, and it's morning in Europe.
     - cron: "30 6 * * *"
+    # Backups, in case GitHub skips the first one or it fails.
+    - cron: "15 8 * * *"
+    - cron: "15 10 * * *"
   workflow_dispatch:
     inputs:
       date:
@@ -26,7 +35,44 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      date: ${{ steps.day.outputs.date }}
+      published: ${{ steps.published.outputs.published }}
+    steps:
+      - name: Pick the date
+        id: day
+        env:
+          DATE_INPUT: ${{ inputs.date }}
+        run: |
+          d="${DATE_INPUT:-$(date -u -d yesterday +%F)}"
+          [[ "$d" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] || { echo "not a YYYY-MM-DD date: $d"; exit 1; }
+          echo "date=$d" >> "$GITHUB_OUTPUT"
+
+      - name: Check whether the day is already published
+        id: published
+        if: github.event_name == 'schedule'
+        env:
+          DAY: ${{ steps.day.outputs.date }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          # If Supabase can't be reached, make the episode anyway: a missed day is worse.
+          rows=$(curl -fsS --retry 3 "${SUPABASE_URL%/}/rest/v1/episodes?select=date&date=eq.$DAY" \
+            -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY") \
+            || { echo "::warning::couldn't check Supabase; making the episode anyway"; rows="[]"; }
+          if [ "$rows" = "[]" ]; then
+            echo "$DAY isn't published yet"
+          else
+            echo "$DAY is already published; nothing to do"
+            echo "published=true" >> "$GITHUB_OUTPUT"
+          fi
+
   episode:
+    needs: check
+    if: needs.check.outputs.published != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 180
     defaults:
@@ -58,26 +104,17 @@ jobs:
           npm install -g @anthropic-ai/claude-code
           claude --version
 
-      - name: Pick the date
-        id: day
-        env:
-          DATE_INPUT: ${{ inputs.date }}
-        run: |
-          d="${DATE_INPUT:-$(date -u -d yesterday +%F)}"
-          [[ "$d" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] || { echo "not a YYYY-MM-DD date: $d"; exit 1; }
-          echo "date=$d" >> "$GITHUB_OUTPUT"
-
       - name: Make and publish the episode
         run: >
           uv run python scripts/run_step.py
           discover validate plan write review produce publish
-          --date ${{ steps.day.outputs.date }}
+          --date ${{ needs.check.outputs.date }}
 
       - name: Keep the run folder
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: run-${{ steps.day.outputs.date }}
-          path: pipeline/data/runs/${{ steps.day.outputs.date }}/
+          name: run-${{ needs.check.outputs.date }}
+          path: pipeline/data/runs/${{ needs.check.outputs.date }}/
           if-no-files-found: ignore
           retention-days: 14
