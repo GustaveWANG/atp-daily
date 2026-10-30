@@ -8,6 +8,7 @@ import PodcastPlayer, {
 } from "@/components/PodcastPlayer";
 import MiniPlayer from "@/components/MiniPlayer";
 import EpisodeFeedback from "@/components/EpisodeFeedback";
+import ListenOn, { PLATFORMS } from "@/components/ListenOn";
 import { sendListenEvent } from "@/lib/listener";
 import { siteOrigin, episodeLink } from "@/lib/site";
 
@@ -212,6 +213,9 @@ export default function Home({ episodes, initialDate, origin }: HomeProps) {
           </div>
         </section>
 
+        {/* ── S'abonner sur les plateformes ── */}
+        <ListenOn />
+
         {/* ── Épisodes précédents ── */}
         <div className={styles.secH}>
           <span>All episodes</span>
@@ -245,7 +249,14 @@ export default function Home({ episodes, initialDate, origin }: HomeProps) {
         {/* ── Footer ── */}
         <div className={styles.foot}>
           <span>TENNIS DAILY · a daily tennis podcast</span>
-          <a href="/feed.xml" className={styles.footLink}>RSS feed</a>
+          <span className={styles.footLinks}>
+            {PLATFORMS.map(({ key, label, href }) => (
+              <a key={key} href={href} className={styles.footLink} target="_blank" rel="noopener noreferrer">
+                {label}
+              </a>
+            ))}
+            <a href="/feed.xml" className={styles.footLink}>RSS feed</a>
+          </span>
         </div>
 
       </div>
