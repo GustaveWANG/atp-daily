@@ -1,7 +1,7 @@
 [project]
 name = "atp-pipeline"
 version = "0.1.0"
-description = "ATP Daily podcast generation pipeline"
+description = "Tennis Daily podcast generation pipeline"
 requires-python = ">=3.12"
 dependencies = [
     "anthropic>=2.3",

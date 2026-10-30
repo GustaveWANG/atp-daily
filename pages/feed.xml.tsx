@@ -4,7 +4,7 @@ import { siteOrigin, episodeLink, trackedAudioUrl } from "@/lib/site";
 // Flux RSS podcast (Apple Podcasts, Spotify, Pocket Casts, Overcast…)
 // Spécification suivie : https://podcasters.apple.com/support/823-podcast-requirements
 
-const SHOW_TITLE = "ATP Daily";
+const SHOW_TITLE = "Tennis Daily";
 const SHOW_DESCRIPTION =
   "A short daily conversation about the ATP tour: yesterday's results, the " +
   "storylines behind them, and how the players played it. Written and voiced " +

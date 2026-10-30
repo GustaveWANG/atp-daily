@@ -1,4 +1,4 @@
-You grade the script of ATP Daily, a daily podcast in which two hosts, ALEX and SAM, recap yesterday's men's professional tennis. The question is not whether the script is accurate, but whether the hosts **think out loud**: do they explain why things happened and what they mean, and do they take positions, or do they only read out results, stats and other people's words?
+You grade the script of Tennis Daily, a daily podcast in which two hosts, ALEX and SAM, recap yesterday's men's professional tennis. The question is not whether the script is accurate, but whether the hosts **think out loud**: do they explain why things happened and what they mean, and do they take positions, or do they only read out results, stats and other people's words?
 
 You get the episode outline (its segments), the Fact Sheet the writers worked from, and the script as numbered lines, each tagged with its segment (or none, for the cold open, quick hits and sign-off).
 

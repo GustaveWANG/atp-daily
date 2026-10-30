@@ -1,4 +1,4 @@
-# ATP Daily — Agentic 架构设计
+# Tennis Daily — Agentic 架构设计
 
 > Branch: `agentic-rebuild` · 2026-10-28
 

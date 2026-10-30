@@ -42,7 +42,7 @@
 .heroWordmark {
   font-family: 'Archivo', sans-serif;
   font-weight: 900;
-  font-size: 180px;
+  font-size: 150px;
   line-height: 0.85;
   letter-spacing: -0.045em;
   color: var(--accent);
@@ -275,7 +275,7 @@
     padding: 20px 24px 56px;
   }
   .heroWordmark {
-    font-size: 130px;
+    font-size: 14vw;
     top: 30px;
   }
   .heroCard {
@@ -298,7 +298,7 @@
     padding: 30px 0 18px;
   }
   .heroWordmark {
-    font-size: 84px;
+    font-size: 14vw;
     top: 34px;
     letter-spacing: -0.04em;
   }
