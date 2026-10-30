@@ -141,7 +141,7 @@ export default function Home({ episodes, initialDate, origin }: HomeProps) {
         <meta property="og:type" content="website" />
         <meta property="og:title" content={shareTitle} />
         <meta property="og:description" content={shareDescription} />
-        <meta property="og:image" content={`${origin}/podcast-cover.png`} />
+        <meta property="og:image" content={`${origin}/tennis-daily-cover.jpg`} />
         {current && <meta property="og:url" content={episodeLink(origin, current.date)} />}
         <meta name="twitter:card" content="summary" />
       </Head>

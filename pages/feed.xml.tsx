@@ -52,7 +52,7 @@ function episodeDescription(ep: FeedRow): string {
 }
 
 function buildFeed(origin: string, episodes: Array<FeedRow & { bytes: number }>): string {
-  const cover = `${origin}/podcast-cover.png`;
+  const cover = `${origin}/tennis-daily-cover.jpg`;
   const ownerEmail = process.env.PODCAST_OWNER_EMAIL;
 
   const items = episodes
