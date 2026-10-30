@@ -1,6 +1,5 @@
-import { createClient } from "@supabase/supabase-js";
-
-// Types qui reflètent la structure de la table matches en base de données
+// Types qui reflètent les tables matches / episodes ; les requêtes passent par
+// supabaseAdmin (lib/supabase-server.ts), côté serveur uniquement
 export interface DbMatchStats {
   aces: number;
   double_faults: number;
@@ -61,10 +60,3 @@ export interface DbEpisode {
   headline: string | null;
   created_at: string;
 }
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-
-// Client sans générique Database — les types manuels ci-dessus (DbMatch, DbEpisode)
-// sont utilisés pour caster les résultats de requête côté application
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);

@@ -11,9 +11,11 @@
 # day is already published; a failed or skipped earlier run gets another go.
 #
 # Run it by hand from the Actions tab (optionally for another date). A manual run
-# always makes the episode, re-publishing the day if it's already there. Each
-# run's data/runs/<date>/ folder is kept as an artifact for a while, to read or
-# listen to.
+# always makes the episode, re-publishing the day if it's already there.
+#
+# The run folder (data/runs/<date>/) isn't uploaded as an artifact: the repo is
+# public, and the folder holds raw API data and the full text of fetched
+# articles. Run the pipeline locally to look at one.
 
 name: Daily episode
 
@@ -101,7 +103,7 @@ jobs:
         run: |
           sudo apt-get update -q
           sudo apt-get install -y -q ffmpeg
-          npm install -g @anthropic-ai/claude-code
+          npm install -g @anthropic-ai/claude-code@2.1.314
           claude --version
 
       - name: Make and publish the episode
@@ -109,12 +111,3 @@ jobs:
           uv run python scripts/run_step.py
           discover validate plan write review produce publish
           --date ${{ needs.check.outputs.date }}
-
-      - name: Keep the run folder
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: run-${{ needs.check.outputs.date }}
-          path: pipeline/data/runs/${{ needs.check.outputs.date }}/
-          if-no-files-found: ignore
-          retention-days: 14
