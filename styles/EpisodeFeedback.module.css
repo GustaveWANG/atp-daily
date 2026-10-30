@@ -1,0 +1,109 @@
+/* ── Retour auditeur, sous le lecteur (fond navy) ───────────────────────────── */
+.box {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px dashed color-mix(in oklch, var(--paper) 18%, transparent);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.askRow {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.q {
+  font-size: 13px;
+  color: color-mix(in oklch, var(--paper) 80%, transparent);
+}
+
+.thumbs {
+  display: flex;
+  gap: 8px;
+}
+
+.thumb {
+  background: transparent;
+  border: 1.2px solid color-mix(in oklch, var(--paper) 32%, transparent);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.thumb:hover {
+  background: color-mix(in oklch, var(--paper) 9%, transparent);
+  border-color: color-mix(in oklch, var(--paper) 65%, transparent);
+}
+
+.text {
+  width: 100%;
+  resize: vertical;
+  background: color-mix(in oklch, var(--paper) 6%, transparent);
+  border: 1.2px solid color-mix(in oklch, var(--paper) 28%, transparent);
+  border-radius: 6px;
+  padding: 10px 12px;
+  color: var(--paper);
+  font: inherit;
+  font-size: 14px;
+}
+
+.text::placeholder {
+  color: color-mix(in oklch, var(--paper) 45%, transparent);
+}
+
+.text:focus {
+  outline: none;
+  border-color: var(--clay);
+}
+
+.row {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+}
+
+.skip,
+.send {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  border-radius: 4px;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+
+.skip {
+  background: transparent;
+  border: 0;
+  color: color-mix(in oklch, var(--paper) 60%, transparent);
+}
+
+.send {
+  background: var(--clay);
+  border: 1.2px solid var(--clay);
+  color: var(--ink);
+}
+
+.send:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.err {
+  margin-right: auto;
+  font-size: 12px;
+  color: var(--clay);
+}
+
+.thanks {
+  margin: 0;
+  font-size: 13px;
+  color: color-mix(in oklch, var(--paper) 70%, transparent);
+}

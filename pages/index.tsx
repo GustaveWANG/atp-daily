@@ -7,6 +7,9 @@ import PodcastPlayer, {
   type PlayerState,
 } from "@/components/PodcastPlayer";
 import MiniPlayer from "@/components/MiniPlayer";
+import EpisodeFeedback from "@/components/EpisodeFeedback";
+import { sendListenEvent } from "@/lib/listener";
+import { siteOrigin, episodeLink } from "@/lib/site";
 
 // ── format des épisodes (chargés depuis Supabase) ────────────────────────────
 
@@ -53,13 +56,25 @@ const WAVE_HEIGHTS = Array.from({ length: 48 }, (_, i) =>
 // ── composant principal ───────────────────────────────────────────────────────
 interface HomeProps {
   episodes: Episode[]; // du plus récent au plus ancien
+  initialDate: string | null; // ?ep=2026-04-26 — lien partagé vers un épisode
+  origin: string;
 }
 
-export default function Home({ episodes }: HomeProps) {
+// Paliers d'écoute envoyés à /api/events (fraction de la durée → événement)
+const MILESTONES: Array<[number, string]> = [
+  [0.25, "progress_25"],
+  [0.5, "progress_50"],
+  [0.75, "progress_75"],
+  [0.95, "complete"],
+];
+
+export default function Home({ episodes, initialDate, origin }: HomeProps) {
   const latest = episodes[0] ?? null;
 
-  // Épisode chargé dans le lecteur — le plus récent par défaut
-  const [current, setCurrent] = useState<Episode | null>(latest);
+  // Épisode chargé dans le lecteur — celui du lien partagé, sinon le plus récent
+  const [current, setCurrent] = useState<Episode | null>(
+    episodes.find((ep) => ep.date === initialDate) ?? latest
+  );
   const isLatest = current?.date === latest?.date;
 
   // Refs et état pour le lecteur et le mini-player
@@ -84,18 +99,51 @@ export default function Home({ episodes }: HomeProps) {
     return () => observer.disconnect();
   }, []);
 
+  // Statistiques d'écoute : un "play" puis chaque palier, une fois par épisode
+  // chargé (les seeks en arrière ne renvoient rien)
+  const sentRef = useRef<{ date: string; events: Set<string> }>({ date: "", events: new Set() });
+  useEffect(() => {
+    const date = current?.date;
+    if (!date) return;
+    if (sentRef.current.date !== date) sentRef.current = { date, events: new Set() };
+    const sent = sentRef.current.events;
+    const once = (event: string) => {
+      if (sent.has(event)) return;
+      sent.add(event);
+      sendListenEvent(date, event);
+    };
+    if (playerState.playing) once("play");
+    if (playerState.duration > 0 && sent.has("play")) {
+      const frac = playerState.currentTime / playerState.duration;
+      for (const [at, event] of MILESTONES) if (frac >= at) once(event);
+    }
+  }, [current?.date, playerState]);
+
   function selectEpisode(ep: Episode) {
     setCurrent(ep);
+    // L'URL suit l'épisode affiché, pour pouvoir la copier et la partager
+    window.history.replaceState(null, "", ep.date === latest?.date ? "/" : `/?ep=${ep.date}`);
     heroRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
+
+  const shareTitle = current && !isLatest ? `${current.title} · ATP Daily` : "ATP Daily";
+  const shareDescription = current?.headline ?? "A daily ATP tennis podcast";
 
   return (
     <>
       <Head>
-        <title>ATP Daily</title>
-        <meta name="description" content="A daily ATP tennis podcast" />
+        <title>{shareTitle}</title>
+        <meta name="description" content={shareDescription} />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="icon" href="/favicon.ico" />
+        <link rel="alternate" type="application/rss+xml" title="ATP Daily" href="/feed.xml" />
+        {/* Aperçu des liens partagés (X/Twitter, iMessage, Slack…) */}
+        <meta property="og:type" content="website" />
+        <meta property="og:title" content={shareTitle} />
+        <meta property="og:description" content={shareDescription} />
+        <meta property="og:image" content={`${origin}/podcast-cover.png`} />
+        {current && <meta property="og:url" content={episodeLink(origin, current.date)} />}
+        <meta name="twitter:card" content="summary" />
       </Head>
 
       <div className={styles.page}>
@@ -140,6 +188,7 @@ export default function Home({ episodes }: HomeProps) {
 
             {/* Lecteur complet si l'audio est disponible, sinon waveform statique */}
             {current?.audio_url ? (
+              <>
               <PodcastPlayer
                 key={current.date}
                 src={current.audio_url}
@@ -148,6 +197,8 @@ export default function Home({ episodes }: HomeProps) {
                 onStateChange={setPlayerState}
                 ref={playerRef}
               />
+              <EpisodeFeedback episodeDate={current.date} />
+              </>
             ) : (
               <div className={styles.heroBottom}>
                 <div className={styles.wave}>
@@ -194,6 +245,7 @@ export default function Home({ episodes }: HomeProps) {
         {/* ── Footer ── */}
         <div className={styles.foot}>
           <span>ATP DAILY · a daily tennis podcast</span>
+          <a href="/feed.xml" className={styles.footLink}>RSS feed</a>
         </div>
 
       </div>
@@ -213,7 +265,9 @@ export default function Home({ episodes }: HomeProps) {
 }
 
 // ── chargement serveur : liste des épisodes ──────────────────────────────────
-export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
+export const getServerSideProps: GetServerSideProps<HomeProps> = async ({ req, query }) => {
+  const initialDate = typeof query.ep === "string" ? query.ep : null;
+  const origin = siteOrigin(req);
   try {
     const { supabaseAdmin } = await import("@/lib/supabase-server");
 
@@ -241,10 +295,10 @@ export const getServerSideProps: GetServerSideProps<HomeProps> = async () => {
       chapter_titles: ep.chapter_titles ?? [],
     }));
 
-    return { props: { episodes } };
+    return { props: { episodes, initialDate, origin } };
   } catch (err) {
     // Supabase inaccessible : page vide plutôt que des données inventées
     console.error("Home data load failed:", (err as Error).message);
-    return { props: { episodes: [] } };
+    return { props: { episodes: [], initialDate, origin } };
   }
 };

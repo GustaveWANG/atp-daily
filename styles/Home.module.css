@@ -251,6 +251,15 @@
   text-transform: uppercase;
 }
 
+.footLink {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.footLink:hover {
+  color: var(--accent);
+}
+
 /* ── État vide (aucune donnée en base) ───────────────────────────────────────── */
 .emptyState {
   font-family: 'JetBrains Mono', monospace;
