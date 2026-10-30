@@ -136,7 +136,7 @@ TTS_MODEL = os.environ.get("TTS_MODEL", "eleven_multilingual_v2")
 TTS_OUTPUT_FORMAT = "mp3_44100_128"
 TTS_VOICES = {
     "ALEX": os.environ.get("ELEVENLABS_VOICE_ALEX", "OZxMHsGaBmV5pjMIDIn0"),  # Amy
-    "SAM": os.environ.get("ELEVENLABS_VOICE_SAM", "7EzWGsX10sAS4c9m9cPf"),  # Jack
+    "SAM": os.environ.get("ELEVENLABS_VOICE_SAM", "wP7XBmkAmRwrjtfK2KeY"),  # Ben
 }
 TTS_VOICE_SETTINGS = {"stability": 0.45, "similarity_boost": 0.75, "style": 0.15, "use_speaker_boost": True}
 # Concurrent requests allowed for multilingual_v2: Free 2, Starter 3, Creator 5, Pro 10.
