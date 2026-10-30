@@ -58,7 +58,7 @@ export default function MiniPlayer({
 
       <div className={styles.miniBody}>
         {/* Vignette de l'épisode */}
-        <div className={styles.miniThumb} aria-hidden="true">atp</div>
+        <div className={styles.miniThumb} aria-hidden="true">tennis</div>
 
         {/* Titre et temps */}
         <div className={styles.miniInfo}>

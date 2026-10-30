@@ -55,7 +55,7 @@ export default function MatchDetail({ match, initialRecap }: Props) {
     <>
       <Head>
         <title>
-          {match.winner.name} vs {match.loser.name} — ATP Daily
+          {match.winner.name} vs {match.loser.name} — Tennis Daily
         </title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
@@ -70,7 +70,7 @@ export default function MatchDetail({ match, initialRecap }: Props) {
               <path d="M2.5 9 Q12 14 21.5 9" />
               <path d="M2.5 15 Q12 10 21.5 15" />
             </svg>
-            atp:daily
+            tennis:daily
           </Link>
           <Link href="/" className={styles.backBtn}>← Back to today</Link>
         </nav>

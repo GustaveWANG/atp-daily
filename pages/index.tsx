@@ -126,7 +126,7 @@ export default function Home({ episodes, initialDate, origin }: HomeProps) {
     heroRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
-  const shareTitle = current && !isLatest ? `${current.title} · ATP Daily` : "ATP Daily";
+  const shareTitle = current && !isLatest ? `${current.title} · Tennis Daily` : "Tennis Daily";
   const shareDescription = current?.headline ?? "A daily ATP tennis podcast";
 
   return (
@@ -136,7 +136,7 @@ export default function Home({ episodes, initialDate, origin }: HomeProps) {
         <meta name="description" content={shareDescription} />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="icon" href="/favicon.ico" />
-        <link rel="alternate" type="application/rss+xml" title="ATP Daily" href="/feed.xml" />
+        <link rel="alternate" type="application/rss+xml" title="Tennis Daily" href="/feed.xml" />
         {/* Aperçu des liens partagés (X/Twitter, iMessage, Slack…) */}
         <meta property="og:type" content="website" />
         <meta property="og:title" content={shareTitle} />
@@ -156,13 +156,13 @@ export default function Home({ episodes, initialDate, origin }: HomeProps) {
               <path d="M2.5 9 Q12 14 21.5 9" />
               <path d="M2.5 15 Q12 10 21.5 15" />
             </svg>
-            atp:daily
+            tennis:daily
           </span>
         </nav>
 
         {/* ── Hero — épisode en cours ── */}
         <section className={styles.hero} ref={heroRef}>
-          <div className={styles.heroWordmark} aria-hidden="true">atp:daily</div>
+          <div className={styles.heroWordmark} aria-hidden="true">tennis:daily</div>
           <div className={styles.heroCard}>
             <div className={styles.heroTop}>
               <span className={`${styles.chip} ${isLatest ? styles.chipAccent : ""}`}>
@@ -244,7 +244,7 @@ export default function Home({ episodes, initialDate, origin }: HomeProps) {
 
         {/* ── Footer ── */}
         <div className={styles.foot}>
-          <span>ATP DAILY · a daily tennis podcast</span>
+          <span>TENNIS DAILY · a daily tennis podcast</span>
           <a href="/feed.xml" className={styles.footLink}>RSS feed</a>
         </div>
 
@@ -253,7 +253,7 @@ export default function Home({ episodes, initialDate, origin }: HomeProps) {
       {/* Mini-player fixe — apparaît quand le hero sort du viewport */}
       <MiniPlayer
         visible={!heroVisible && !!current?.audio_url}
-        title={current?.title ?? "ATP Daily"}
+        title={current?.title ?? "Tennis Daily"}
         playing={playerState.playing}
         currentTime={playerState.currentTime}
         duration={playerState.duration}
