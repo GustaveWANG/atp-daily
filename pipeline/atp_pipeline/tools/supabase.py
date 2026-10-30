@@ -38,7 +38,9 @@ class SupabaseClient:
     def upload(self, bucket: str, path: str, data: bytes, content_type: str) -> str:
         """Upload (or overwrite) a file in a public bucket; returns its public URL."""
         self._request("POST", f"/storage/v1/object/{bucket}/{path}", content=data,
-                      headers={"Content-Type": content_type, "x-upsert": "true"})
+                      headers={"Content-Type": content_type, "x-upsert": "true",
+                               # Lets browsers keep the MP3 instead of re-downloading it each visit
+                               "cache-control": "max-age=86400"})
         return f"{self.url}/storage/v1/object/public/{bucket}/{path}"
 
     def upsert(self, table: str, row: dict, on_conflict: str) -> None:

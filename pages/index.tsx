@@ -276,7 +276,10 @@ export default function Home({ episodes, initialDate, origin }: HomeProps) {
 }
 
 // ── chargement serveur : liste des épisodes ──────────────────────────────────
-export const getServerSideProps: GetServerSideProps<HomeProps> = async ({ req, query }) => {
+export const getServerSideProps: GetServerSideProps<HomeProps> = async ({ req, res, query }) => {
+  // Page servie depuis le cache CDN de Vercel ; un nouvel épisode arrive une
+  // fois par jour, la régénération se fait en arrière-plan
+  res.setHeader("Cache-Control", "public, s-maxage=300, stale-while-revalidate=86400");
   const initialDate = typeof query.ep === "string" ? query.ep : null;
   const origin = siteOrigin(req);
   try {
