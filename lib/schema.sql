@@ -59,3 +59,8 @@ CREATE TABLE IF NOT EXISTS episodes (
 );
 
 CREATE INDEX IF NOT EXISTS episodes_date_idx ON episodes (date DESC);
+
+-- Lues et écrites uniquement avec la service role key (site et pipeline) :
+-- RLS activé sans policy, donc la clé anon n'y a pas accès.
+ALTER TABLE matches ENABLE ROW LEVEL SECURITY;
+ALTER TABLE episodes ENABLE ROW LEVEL SECURITY;
