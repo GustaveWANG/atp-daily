@@ -162,5 +162,3 @@ AUDIO_LOUDNESS_LUFS = -16  # podcast standard
 # PUBLISH: Supabase, which the website reads. SUPABASE_URL and
 # SUPABASE_SERVICE_ROLE_KEY come from the environment or .env.
 PUBLISH_BUCKET = "audio"  # public Storage bucket; files go to episodes/<date>.mp3
-# Publish even when some lines still fail audio QA (produce status needs_review).
-PUBLISH_NEEDS_REVIEW = os.environ.get("PUBLISH_NEEDS_REVIEW", "") not in ("", "0", "false")
