@@ -20,10 +20,6 @@ on:
       date:
         description: "Match day, YYYY-MM-DD (default: yesterday, UTC)"
         required: false
-      publish_needs_review:
-        description: "Publish even if some audio lines fail QA"
-        type: boolean
-        default: false
 
 concurrency:
   group: daily-episode
@@ -43,7 +39,6 @@ jobs:
       ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-      PUBLISH_NEEDS_REVIEW: ${{ inputs.publish_needs_review && '1' || '' }}
       PYTHONUNBUFFERED: "1"
     steps:
       - uses: actions/checkout@v4

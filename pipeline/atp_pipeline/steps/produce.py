@@ -9,7 +9,7 @@ Pure code, no model calls:
 3. Stitch the lines with short gaps, normalise loudness, read the real duration.
 
 The episode is always stitched so a person can listen to it, but any line
-still failing QA makes the status needs_review.
+still failing QA makes the status needs_review; PUBLISH still publishes it.
 """
 
 import difflib

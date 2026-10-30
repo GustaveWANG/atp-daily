@@ -120,8 +120,7 @@ def run_produce(run: Run) -> None:
     if result.status != "passed":
         # The last revision is usually close; a day with no episode is worse.
         blocking = sum(i.severity == "blocking" for i in result.rounds[-1].issues)
-        note = f"script still has {blocking} blocking review issue(s) after the last revision; using it anyway"
-        print(f"::warning::{note}" if os.environ.get("GITHUB_ACTIONS") else f"produce: {note}")
+        _warn(f"script still has {blocking} blocking review issue(s) after the last revision; using it anyway")
     output = produce.run(result, run.dir / "audio")
     failed = [line for line in output.lines if line.issues]
     rerolled = sum(1 for line in output.lines if line.attempts > 1)
@@ -138,9 +137,19 @@ def run_produce(run: Run) -> None:
 
 
 def run_publish(run: Run) -> None:
-    row = publish.run(run.load("review", ReviewOutput), run.load("produce", ProduceOutput), run.dir)
+    produced = run.load("produce", ProduceOutput)
+    failed = sum(1 for line in produced.lines if line.issues)
+    if failed:
+        # A line or two with a pause or slip beats a day with no episode.
+        _warn(f"{failed} audio line(s) still fail QA; publishing anyway")
+    row = publish.run(run.load("review", ReviewOutput), produced, run.dir)
     print(f"publish: {row['date']} {row['title']!r}, {row['audio_duration'] / 60:.1f} min")
     print(f"  audio: {row['audio_url']}")
+
+
+def _warn(note: str) -> None:
+    """Shows as an annotation on the run page in GitHub Actions."""
+    print(f"::warning::{note}" if os.environ.get("GITHUB_ACTIONS") else f"warning: {note}")
 
 
 def _print_draft(draft: Draft) -> None:

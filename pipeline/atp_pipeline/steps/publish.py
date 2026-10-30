@@ -2,7 +2,8 @@
 
 Pure code, no model calls: upload the episode MP3 to Supabase Storage and
 upsert the day's row in `episodes`, which is what the website reads.
-Re-publishing a date overwrites that day's audio and row.
+Re-publishing a date overwrites that day's audio and row. Audio that still
+fails QA (produce status needs_review) is published too; the runner warns.
 """
 
 from pathlib import Path
@@ -22,9 +23,6 @@ def run(review: ReviewOutput, produced: ProduceOutput, run_dir: Path) -> dict:
     draft = review.draft
     if produced.script_hash != script_hash(draft.script):
         raise PublishError("the audio was made from a different script; rerun produce")
-    if produced.status != "passed" and not config.PUBLISH_NEEDS_REVIEW:
-        raise PublishError("some lines still fail audio QA (status needs_review); "
-                           "listen and set PUBLISH_NEEDS_REVIEW=1 to publish anyway")
 
     client = SupabaseClient()
     day = review.target_date
