@@ -13,6 +13,13 @@ export function episodeLink(origin: string, date: string): string {
   return `${origin}/?ep=${date}`;
 }
 
+// Pages de l'émission sur les plateformes — laisser "" tant qu'elle n'y est
+// pas encore publiée : le bouton correspondant est alors masqué
+export const LISTEN_LINKS = {
+  apple: "https://podcasts.apple.com/us/podcast/tennis-daily/id6828797687",
+  spotify: "https://open.spotify.com/show/3l00OmsGUoXiPJNblZPhtj",
+};
+
 // URL d'audio passée aux applis podcast : passe par /api/e pour compter
 // les téléchargements, puis redirige vers le MP3 de Supabase Storage
 export function trackedAudioUrl(origin: string, date: string): string {
