@@ -75,3 +75,7 @@ listed at the top of `.github/workflows/daily-episode.yml` to your fork.
 Never commit `.env`, `.env.local` or any key. The Supabase service role key is
 used server-side only; tables have row level security on with no policies, so
 the anon key can't read or write them.
+
+## License
+
+[MIT](LICENSE)
