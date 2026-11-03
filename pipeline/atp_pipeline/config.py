@@ -1,6 +1,7 @@
 """Settings read from the environment or pipeline/.env."""
 
 import os
+from datetime import date, timedelta
 from pathlib import Path
 
 PIPELINE_DIR = Path(__file__).resolve().parent.parent
@@ -50,6 +51,17 @@ RESEARCH_EFFORT = os.environ.get("RESEARCH_EFFORT", "high")  # low | medium | hi
 # TourRank ids: 2 main tour (250/500), 3 Masters, 4 Grand Slam, 5 Davis Cup,
 # 7 Tour Finals. Leaves out 0 ITF and 1 Challenger.
 MAIN_TOUR_RANKS = (2, 3, 4, 5, 7)
+
+# An episode comes out every EPISODE_DAYS days and covers the match days since
+# the last one, ending on its own date.
+EPISODE_DAYS = int(os.environ.get("EPISODE_DAYS", "2"))
+
+
+def episode_days(day: str) -> list[str]:
+    """The match days covered by the episode dated `day`, oldest first."""
+    d = date.fromisoformat(day)
+    return [(d - timedelta(days=i)).isoformat() for i in range(EPISODE_DAYS - 1, -1, -1)]
+
 
 # Caps on the research agent's tool use per run.
 MAX_STATS_CALLS = 10

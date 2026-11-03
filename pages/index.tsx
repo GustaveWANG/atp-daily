@@ -128,7 +128,7 @@ export default function Home({ episodes, initialDate, origin }: HomeProps) {
   }
 
   const shareTitle = current && !isLatest ? `${current.title} · Tennis Daily` : "Tennis Daily";
-  const shareDescription = current?.headline ?? "A daily ATP tennis podcast";
+  const shareDescription = current?.headline ?? "An ATP tennis podcast, every other morning";
 
   return (
     <>
@@ -179,9 +179,9 @@ export default function Home({ episodes, initialDate, origin }: HomeProps) {
               </>
             ) : (
               <>
-                <h1 className={styles.heroTitle}>Today&apos;s episode</h1>
+                <h1 className={styles.heroTitle}>Latest episode</h1>
                 <p className={styles.heroSub}>
-                  A daily conversation about the ATP tour — what happened, and how
+                  A conversation about the ATP tour every other morning — what happened, and how
                   the players played it.
                 </p>
               </>
@@ -248,7 +248,7 @@ export default function Home({ episodes, initialDate, origin }: HomeProps) {
 
         {/* ── Footer ── */}
         <div className={styles.foot}>
-          <span>TENNIS DAILY · a daily tennis podcast</span>
+          <span>TENNIS DAILY · a tennis podcast every other morning</span>
           <span className={styles.footLinks}>
             {PLATFORMS.map(({ key, label, href }) => (
               <a key={key} href={href} className={styles.footLink} target="_blank" rel="noopener noreferrer">

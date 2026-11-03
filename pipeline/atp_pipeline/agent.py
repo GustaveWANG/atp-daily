@@ -163,14 +163,14 @@ def run_agent(
 class WebTools:
     """web_search / web_fetch for an agent, with caps, keeping every page it read.
 
-    Search results are limited to the day before the matches through two days
-    after, and only URLs that came back from a search can be fetched.
+    Search results are limited to the day before the first match day through two
+    days after the last, and only URLs that came back from a search can be fetched.
     """
 
     SEARCH = llm.Tool(
         name="web_search",
         description=(
-            "Search the web. Results are limited to pages published around the match day. "
+            "Search the web. Results are limited to pages published around the match days. "
             "Returns title, url, published date and a short snippet per result. Snippets are "
             "not enough to cite; open a page with web_fetch first."
         ),
@@ -194,7 +194,8 @@ class WebTools:
 
     def __init__(self, day: str, client: TavilyClient, usage: StepUsage, max_searches: int, max_fetches: int):
         d = date.fromisoformat(day)
-        self.window = ((d - timedelta(days=1)).isoformat(), (d + timedelta(days=2)).isoformat())
+        first = date.fromisoformat(config.episode_days(day)[0])
+        self.window = ((first - timedelta(days=1)).isoformat(), (d + timedelta(days=2)).isoformat())
         self.client = client
         self.usage = usage
         self.max_searches = max_searches

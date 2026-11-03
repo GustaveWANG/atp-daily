@@ -92,8 +92,9 @@ def _legal_set(a: int, b: int, tiebreak: int | None) -> bool:
 
 def check_match(m: Match, day: str) -> str | None:
     """Reason the match can't be used, or None."""
-    if not m.date.startswith(day):
-        return f"date {m.date} is outside {day}"
+    days = config.episode_days(day)
+    if m.date[:10] not in days:
+        return f"date {m.date} is outside {', '.join(days)}"
     if m.winner.id == m.loser.id:
         return "winner and loser are the same player"
     if m.result_type == "walkover":
@@ -234,9 +235,10 @@ def _verify(day, matches, outliers, usage, search, open_session) -> None:
     by_match = {m.id: m for m in matches}
     web = agent.WebTools(day, search or TavilyClient(), usage, config.MAX_VERIFY_SEARCHES, config.MAX_VERIFY_FETCHES)
 
-    task = "Outliers to verify (match date " + day + " UTC):\n\n" + "\n".join(
+    task = "Outliers to verify (dates are UTC):\n\n" + "\n".join(
         f"- {o.id}: {o.fact}. Flagged because: {o.reason}. "
-        f"Match: {by_match[o.match_id].tournament}, {by_match[o.match_id].round} round."
+        f"Match: {by_match[o.match_id].tournament}, {by_match[o.match_id].round} round, "
+        f"{by_match[o.match_id].date[:10]}."
         for o in todo
     )
     try:

@@ -9,6 +9,7 @@ articles, which downstream must only use with attribution.
 import json
 import re
 
+from . import config
 from .schemas import FactSheet, Match
 
 # Derived values are worked out here, not left to the models: they misread
@@ -51,6 +52,7 @@ def _with_percentages(side: dict) -> dict:
 def match_facts(m: Match) -> dict:
     facts = {
         "id": m.id,
+        "date": m.date[:10],
         "tournament": m.tournament,
         "level": m.level,
         "surface": m.surface,
@@ -75,7 +77,7 @@ def render(sheet: FactSheet, match_ids: list[str] | None = None) -> str:
     articles and outliers about them)."""
     keep = set(match_ids) if match_ids is not None else {m.id for m in sheet.matches}
     data = {
-        "date": sheet.target_date,
+        "match_days": config.episode_days(sheet.target_date),
         "matches": [match_facts(m) for m in sheet.matches if m.id in keep],
         "articles": [
             a.model_dump(include={"id", "source", "title", "url", "kind", "match_ids", "key_points", "notable_quote"})

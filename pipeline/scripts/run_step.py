@@ -6,7 +6,8 @@ Usage:
     uv run python scripts/run_step.py produce --date 2026-10-27   # audio, needs ffmpeg
     uv run python scripts/run_step.py publish --date 2026-10-27   # to Supabase, for the website
 
---date defaults to yesterday (UTC). Each step reads the earlier steps' output
+--date defaults to yesterday (UTC) and is the last match day the episode covers;
+config.EPISODE_DAYS sets how many days that is. Each step reads the earlier steps' output
 from data/runs/<date>/ and writes its own to data/runs/<date>/<step>.json, so
 any step can be rerun on its own. --run <name> uses data/runs/<name>/ instead.
 """

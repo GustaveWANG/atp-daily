@@ -1,14 +1,17 @@
-# Makes yesterday's episode every morning and publishes it to Supabase, where
-# the website reads it.
+# Makes an episode every other morning, covering the two match days since the
+# last one, and publishes it to Supabase, where the website reads it.
 #
 # Secrets (Settings > Secrets and variables > Actions):
 #   CLAUDE_CODE_OAUTH_TOKEN    from `claude setup-token`; model calls run on the Claude subscription
 #   RAPIDAPI_KEY, TAVILY_API_KEY, ELEVENLABS_API_KEY
 #   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 #
-# GitHub sometimes skips or drops scheduled runs, so there are backup times
-# later in the morning. A scheduled run first checks Supabase and stops if the
-# day is already published; a failed or skipped earlier run gets another go.
+# The schedule fires every morning. A scheduled run first checks Supabase and
+# stops if the latest episode is less than EPISODE_DAYS days older than
+# yesterday, so episodes come out every EPISODE_DAYS days (a cron like */2
+# would run two days in a row across the end of a month). GitHub sometimes
+# skips or drops scheduled runs, so there are backup times later in the
+# morning; a failed or skipped earlier run gets another go.
 #
 # Before any model call, the check job also makes sure ElevenLabs has enough
 # credits left for an episode's audio; otherwise a run would spend the Claude
@@ -16,13 +19,14 @@
 # balance needs the ElevenLabs key to have the user_read permission.
 #
 # Run it by hand from the Actions tab (optionally for another date). A manual run
-# always makes the episode, re-publishing the day if it's already there.
+# always makes the episode, re-publishing the date if it's already there. The
+# date is the last match day the episode covers.
 #
 # The run folder (data/runs/<date>/) isn't uploaded as an artifact: the repo is
 # public, and the folder holds raw API data and the full text of fetched
 # articles. Run the pipeline locally to look at one.
 
-name: Daily episode
+name: Episode
 
 on:
   schedule:
@@ -34,12 +38,16 @@ on:
   workflow_dispatch:
     inputs:
       date:
-        description: "Match day, YYYY-MM-DD (default: yesterday, UTC)"
+        description: "Last match day, YYYY-MM-DD (default: yesterday, UTC)"
         required: false
 
 concurrency:
   group: daily-episode
   cancel-in-progress: false
+
+env:
+  # Days between episodes. The pipeline reads it too: one episode covers this many match days.
+  EPISODE_DAYS: "2"
 
 jobs:
   check:
@@ -58,7 +66,7 @@ jobs:
           [[ "$d" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] || { echo "not a YYYY-MM-DD date: $d"; exit 1; }
           echo "date=$d" >> "$GITHUB_OUTPUT"
 
-      - name: Check whether the day is already published
+      - name: Check whether an episode is due
         id: published
         if: github.event_name == 'schedule'
         env:
@@ -66,15 +74,21 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
-          # If Supabase can't be reached, make the episode anyway: a missed day is worse.
-          rows=$(curl -fsS --retry 3 "${SUPABASE_URL%/}/rest/v1/episodes?select=date&date=eq.$DAY" \
+          # If Supabase can't be reached, make the episode anyway: a missed episode is worse.
+          rows=$(curl -fsS --retry 3 "${SUPABASE_URL%/}/rest/v1/episodes?select=date&order=date.desc&limit=1" \
             -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY") \
             || { echo "::warning::couldn't check Supabase; making the episode anyway"; rows="[]"; }
-          if [ "$rows" = "[]" ]; then
-            echo "$DAY isn't published yet"
-          else
-            echo "$DAY is already published; nothing to do"
+          latest=$(jq -r '.[0].date // empty' <<<"$rows" 2>/dev/null || true)
+          if [ -z "$latest" ]; then
+            echo "no episode found; making $DAY"
+            exit 0
+          fi
+          gap=$(( ($(date -u -d "$DAY" +%s) - $(date -u -d "$latest" +%s)) / 86400 ))
+          if [ "$gap" -lt "$EPISODE_DAYS" ]; then
+            echo "latest episode is $latest, $gap day(s) before $DAY; nothing to do"
             echo "published=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "latest episode is $latest; making $DAY"
           fi
 
       - name: Check ElevenLabs credits
