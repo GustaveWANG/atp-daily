@@ -1,7 +1,7 @@
 # Tennis Daily
 
-A daily AI-generated tennis podcast. Every morning a pipeline picks up
-yesterday's ATP results, researches the stories worth telling, writes a
+An AI-generated tennis podcast. Every other morning a pipeline picks up the
+last two days of ATP results, researches the stories worth telling, writes a
 two-host script, voices it, and publishes it to a website and podcast feed.
 
 Listen on [Apple Podcasts](https://podcasts.apple.com/us/podcast/tennis-daily/id6828797687)
@@ -32,7 +32,7 @@ More in [docs/agentic-rebuild-design.md](docs/agentic-rebuild-design.md).
 | `pipeline/` | Python pipeline (`atp_pipeline/`, prompts, evals, `scripts/run_step.py`) |
 | `pages/`, `components/`, `lib/`, `styles/` | Next.js website and RSS feed (`/feed.xml`) |
 | `lib/schema.sql`, `lib/migrations/` | Supabase schema |
-| `.github/workflows/daily-episode.yml` | Daily scheduled run |
+| `.github/workflows/daily-episode.yml` | Scheduled run, every other day |
 
 ## Running it
 
@@ -54,7 +54,8 @@ cp .env.example .env   # fill in the keys
 uv run python scripts/run_step.py discover validate plan write review produce publish --date 2026-10-27
 ```
 
-`produce` needs ffmpeg. Each step writes to `pipeline/data/runs/<date>/`, so
+`--date` is the last match day; the episode covers `EPISODE_DAYS` days ending
+there (2 by default). `produce` needs ffmpeg. Each step writes to `pipeline/data/runs/<date>/`, so
 any step can be rerun on its own.
 
 ### Website
@@ -67,7 +68,8 @@ npm run dev
 
 ### Scheduled runs
 
-The GitHub Actions workflow runs the pipeline every morning. Add the secrets
+The GitHub Actions workflow runs the pipeline every other morning (set
+`EPISODE_DAYS` in it to change that). Add the secrets
 listed at the top of `.github/workflows/daily-episode.yml` to your fork.
 
 ## Security

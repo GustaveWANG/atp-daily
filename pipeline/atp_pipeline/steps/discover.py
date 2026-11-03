@@ -1,6 +1,6 @@
 """Step 1 - DISCOVER.
 
-Code pulls every main-tour result for the day (facts never depend on the
+Code pulls every main-tour result for the episode's days (facts never depend on the
 model). The research agent then picks the matches worth covering, pulls their
 stats, and finds analysis on the web through Tavily. The model is reached
 through llm.py, so any supported vendor can play the agent. Its picks and articles
@@ -49,7 +49,7 @@ WEB_SEARCH_TOOL = llm.Tool(
             "window": {
                 "type": "string",
                 "enum": ["match", "background", "style"],
-                "description": "'match' for reports on yesterday's matches, 'background' for a player's news, form or history, "
+                "description": "'match' for reports on the listed matches, 'background' for a player's news, form or history, "
                 "'style' for how a player plays: strokes, serve, equipment, tactics, matchups.",
             },
         },
@@ -154,9 +154,9 @@ def run(
     tennis = tennis or TennisApiClient()
     meta = SourceMeta(model=config.RESEARCH_MODEL)
 
-    matches = [to_match(row) for row in tennis.get_results(day)]
+    matches = [to_match(row) for d in config.episode_days(day) for row in tennis.get_results(d)]
     if not matches:
-        # Off day. VALIDATE turns this into NO_SHOW; no point paying for the agent.
+        # No matches on any of the days. VALIDATE turns this into NO_SHOW; no point paying for the agent.
         meta.tennis_api_requests, meta.tennis_api_cache_hits = tennis.requests, tennis.cache_hits
         return DiscoverOutput(target_date=day, matches=[], articles=[], source_meta=meta)
 
@@ -178,6 +178,11 @@ def run(
     return DiscoverOutput(target_date=day, matches=matches, articles=articles, source_meta=meta)
 
 
+def _days_label(day: str) -> str:
+    days = config.episode_days(day)
+    return days[0] if len(days) == 1 else f"{days[0]} to {days[-1]}"
+
+
 def _attach_stats(match: Match, tennis: TennisApiClient) -> None:
     raw = tennis.get_match_stats(match.id)
     if raw:
@@ -194,9 +199,10 @@ class _ResearchAgent:
         self.meta = meta
         self.stats_calls = 0
         d = date.fromisoformat(day)
+        first = date.fromisoformat(config.episode_days(day)[0])
         end = (d + timedelta(days=2)).isoformat()
         self.search_windows = {
-            "match": ((d - timedelta(days=1)).isoformat(), end),
+            "match": ((first - timedelta(days=1)).isoformat(), end),
             "background": ((d - timedelta(days=config.BACKGROUND_SEARCH_DAYS)).isoformat(), end),
             "style": ((d - timedelta(days=config.STYLE_SEARCH_DAYS)).isoformat(), end),
         }
@@ -207,6 +213,7 @@ class _ResearchAgent:
         results = [
             {
                 "id": m.id,
+                "date": m.date[:10],
                 "tournament": m.tournament,
                 "level": m.level,
                 "surface": m.surface,
@@ -220,7 +227,7 @@ class _ResearchAgent:
             for m in self.matches.values()
         ]
         self.session.add_user(
-            f"Results for {self.day} (UTC), {len(results)} main-tour singles matches:\n\n"
+            f"Results for {_days_label(self.day)} (UTC), {len(results)} main-tour singles matches:\n\n"
             f"{json.dumps(results, ensure_ascii=False, indent=1)}\n\n"
             f"Budget for this run: {config.MAX_STATS_CALLS} get_match_stats calls, "
             f"{config.MAX_WEB_SEARCHES} web_search calls, {config.MAX_WEB_FETCHES} web_fetch calls. "
@@ -355,7 +362,7 @@ def _accept_submission(submission: _Submission, matches: list[Match], research: 
         if len(match_ids) != len(raw.match_ids):
             meta.warnings.append(f"article {url} referenced unknown match ids; removed them")
         if not match_ids:
-            meta.warnings.append(f"article {url} is about none of the day's matches, dropped")
+            meta.warnings.append(f"article {url} is about none of the episode's matches, dropped")
             continue
         quote = _trim_quote(raw.notable_quote or "") or None
         if quote and not agent.appears_in(quote, research.fetched[url]):

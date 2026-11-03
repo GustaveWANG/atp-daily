@@ -6,9 +6,9 @@ import { siteOrigin, episodeLink, trackedAudioUrl } from "@/lib/site";
 
 const SHOW_TITLE = "Tennis Daily";
 const SHOW_DESCRIPTION =
-  "A short daily conversation about the ATP tour: yesterday's results, the " +
+  "A short conversation about the ATP tour: the last two days' results, the " +
   "storylines behind them, and how the players played it. Written and voiced " +
-  "with AI from verified match data, published every morning during the season. " +
+  "with AI from verified match data, published every other morning during the season. " +
   "Not affiliated with the ATP Tour.";
 
 interface FeedRow {
