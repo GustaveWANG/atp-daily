@@ -10,6 +10,11 @@
 # later in the morning. A scheduled run first checks Supabase and stops if the
 # day is already published; a failed or skipped earlier run gets another go.
 #
+# Before any model call, the check job also makes sure ElevenLabs has enough
+# credits left for an episode's audio; otherwise a run would spend the Claude
+# subscription on a script and then fail at the produce step. Reading the
+# balance needs the ElevenLabs key to have the user_read permission.
+#
 # Run it by hand from the Actions tab (optionally for another date). A manual run
 # always makes the episode, re-publishing the day if it's already there.
 #
@@ -70,6 +75,28 @@ jobs:
           else
             echo "$DAY is already published; nothing to do"
             echo "published=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Check ElevenLabs credits
+        if: steps.published.outputs.published != 'true'
+        env:
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+          # An episode is about 8,000 TTS characters, plus re-rolled lines.
+          MIN_CREDITS: "12000"
+        run: |
+          res=$(curl -sS --retry 3 https://api.elevenlabs.io/v1/user/subscription -H "xi-api-key: $ELEVENLABS_API_KEY") || res="{}"
+          used=$(jq -r '.character_count // empty' <<<"$res" 2>/dev/null || true)
+          limit=$(jq -r '.character_limit // empty' <<<"$res" 2>/dev/null || true)
+          if [ -z "$used" ] || [ -z "$limit" ]; then
+            echo "::warning::couldn't read the ElevenLabs balance (give the key the user_read permission): $(head -c 300 <<<"$res")"
+            exit 0
+          fi
+          left=$((limit - used))
+          reset=$(jq -r '.next_character_count_reset_unix // empty' <<<"$res")
+          echo "ElevenLabs: $left of $limit credits left${reset:+, resets $(date -u -d "@$reset" +%F)}"
+          if [ "$left" -lt "$MIN_CREDITS" ]; then
+            echo "::error::only $left ElevenLabs credits left, an episode needs about $MIN_CREDITS; stopping before any model call"
+            exit 1
           fi
 
   episode:
